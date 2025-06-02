@@ -11,9 +11,9 @@ import { ndmoClassificationOptions } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2, Settings2 } from "lucide-react";
+import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { testPostgresConnection, fetchColumnData, insertColumnData, batchInsertColumnData, updateColumnData } from "@/app/actions/dbActions";
@@ -29,6 +29,7 @@ export default function DataClassificationPage() {
   const [dbConnectionStatus, setDbConnectionStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
   const [dbConnectionMessage, setDbConnectionMessage] = useState<string | null>(null);
   const [isDbPopoverOpen, setIsDbPopoverOpen] = useState(false);
+  const [isFilePopoverOpen, setIsFilePopoverOpen] = useState(false);
 
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function DataClassificationPage() {
     if (storedDbUrl) {
       setPostgresUrl(storedDbUrl);
       // Optionally, try to auto-connect if URL exists
-      // handleTestConnection(storedDbUrl); 
+      // handleTestConnection(storedDbUrl);
     }
   }, []);
 
@@ -164,14 +165,10 @@ export default function DataClassificationPage() {
             const batchResult = await batchInsertColumnData(postgresUrl, parsedColumns);
             let successCount = 0;
             let failCount = 0;
-            const successfullyProcessedColumns: ColumnData[] = [];
-
+           
             batchResult.results?.forEach(res => {
                 if (res.success) {
                     successCount++;
-                    // If it was a duplicate and skipped, it's still "successful" in terms of not erroring out the batch.
-                    // We might want to fetch the existing one or use the one from CSV. For now, assume CSV version.
-                    successfullyProcessedColumns.push(res.column); 
                 } else {
                     failCount++;
                 }
@@ -187,10 +184,12 @@ export default function DataClassificationPage() {
             if (fetchRes.success && fetchRes.data) {
                 setColumns(fetchRes.data.sort((a, b) => a.columnName.localeCompare(b.columnName)));
             }
+            setIsFilePopoverOpen(false);
 
         } else {
             setColumns((prevColumns) => [...prevColumns, ...parsedColumns].sort((a, b) => a.columnName.localeCompare(b.columnName)));
             toast({ title: "CSV Uploaded (Locally)", description: `${parsedColumns.length} columns added locally from the CSV file.` });
+            setIsFilePopoverOpen(false);
         }
       },
       error: (error)  => {
@@ -298,6 +297,44 @@ export default function DataClassificationPage() {
             Data Classification Tool
           </h1>
           <div className="flex items-center space-x-2">
+             <Popover open={isFilePopoverOpen} onOpenChange={setIsFilePopoverOpen}>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="rounded-md">
+                        <Upload className="h-5 w-5" />
+                        <span className="sr-only">Upload CSV File</span>
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 space-y-4 p-4 mr-2">
+                    <div className="space-y-2">
+                        <h4 className="font-medium leading-none text-primary">Upload CSV</h4>
+                        <p className="text-sm text-muted-foreground">
+                            Import column data from a CSV file.
+                        </p>
+                    </div>
+                    <div>
+                        <Label htmlFor="csv-upload-input-popover" className="text-sm font-medium sr-only">Upload CSV File</Label>
+                        <Input
+                          id="csv-upload-input-popover"
+                          type="file"
+                          accept=".csv"
+                          onChange={handleFileUpload}
+                          ref={fileInputRef}
+                          className="hidden"
+                        />
+                         <Button
+                          onClick={() => fileInputRef.current?.click()}
+                          variant="outline"
+                          className="w-full rounded-md"
+                        >
+                          <Upload className="mr-2 h-4 w-4" /> Choose CSV File
+                        </Button>
+                         <p className="text-xs text-muted-foreground mt-1">
+                          CSV must contain 'column_name' or 'Column Name'. Optional: Description, NDMO Classification, PII, PHI, PFI, PSI.
+                        </p>
+                      </div>
+                </PopoverContent>
+            </Popover>
+
             <Popover open={isDbPopoverOpen} onOpenChange={setIsDbPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon" className="rounded-md">
@@ -321,7 +358,6 @@ export default function DataClassificationPage() {
                     value={postgresUrl}
                     onChange={(e) => {
                       setPostgresUrl(e.target.value);
-                      // Reset status if URL changes
                       if (dbConnectionStatus !== 'idle' && dbConnectionStatus !== 'connecting') {
                           setDbConnectionStatus("idle");
                           setDbConnectionMessage(null);
@@ -364,35 +400,6 @@ export default function DataClassificationPage() {
               <DataClassifyForm onSubmit={handleAddColumn} ndmoOptions={ndmoClassificationOptions} />
             </CardContent>
           </Card>
-
-          <Card className="shadow-xl rounded-lg">
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl text-primary">File Operations</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="csv-upload-input" className="text-sm font-medium sr-only">Upload CSV File</Label>
-                <Input
-                  id="csv-upload-input"
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileUpload}
-                  ref={fileInputRef}
-                  className="hidden" 
-                />
-                 <Button 
-                  onClick={() => fileInputRef.current?.click()}
-                  variant="outline"
-                  className="w-full rounded-md"
-                >
-                  <Upload className="mr-2 h-4 w-4" /> Choose CSV File
-                </Button>
-                 <p className="text-xs text-muted-foreground mt-1">
-                  CSV must contain 'column_name' or 'Column Name'. Optional: Description, NDMO Classification, PII, PHI, PFI, PSI.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
         
         <div className="lg:col-span-2">
@@ -421,4 +428,4 @@ export default function DataClassificationPage() {
     </main>
   );
 }
-
+    
