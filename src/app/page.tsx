@@ -55,7 +55,7 @@ export default function DataClassificationPage() {
         setColumns((prevColumns) => [result.data!, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
         toast({
           title: "Column Added",
-          description: `"${values.columnName}" has been saved to the database and added locally.`,
+          description: `"${values.columnName}" has been saved to the database.`,
         });
       } else {
         toast({
@@ -167,22 +167,26 @@ export default function DataClassificationPage() {
             let failCount = 0;
            
             batchResult.results?.forEach(res => {
-                if (res.success) {
+                if (res.success && !res.error?.includes('Duplicate')) { // Count actual inserts, not skipped duplicates as primary "success" for this toast
                     successCount++;
-                } else {
+                } else if (!res.success) {
                     failCount++;
                 }
             });
             
-            if (batchResult.success) {
-                 toast({ title: "CSV Processed", description: `${successCount} columns processed from CSV and synced with DB. ${failCount > 0 ? `${failCount} failed.` : ''}` });
+            if (batchResult.success) { // Overall transaction success
+                 toast({ title: "CSV Processed & Synced", description: `${successCount} new column${successCount === 1 ? '' : 's'} from CSV saved to DB. ${failCount > 0 ? `${failCount} failed.` : ''} ${batchResult.results?.filter(r => r.error?.includes('Duplicate')).length || 0} duplicates skipped.` });
             } else {
                  toast({ title: "CSV Processing Error", description: `Error during DB sync. ${successCount} columns processed, ${failCount} failed. ${batchResult.message}`, variant: "destructive" });
             }
             // Fetch all columns again to get a consistent state, including any existing ones.
+            toast({ title: "Refreshing Data", description: "Reloading all columns from the database..."});
             const fetchRes = await fetchColumnData(postgresUrl);
             if (fetchRes.success && fetchRes.data) {
                 setColumns(fetchRes.data.sort((a, b) => a.columnName.localeCompare(b.columnName)));
+            } else {
+                 setColumns([]);
+                 toast({ title: "Refresh Error", description: fetchRes.message || "Could not reload data from database.", variant: "destructive" });
             }
             setIsFilePopoverOpen(false);
 
@@ -263,16 +267,46 @@ export default function DataClassificationPage() {
         setDbConnectionStatus("connected");
         setDbConnectionMessage(result.message);
         toast({ title: "Connection Successful", description: result.message });
-        localStorage.setItem("postgresUrl", currentUrl); // Save on successful connect
+        localStorage.setItem("postgresUrl", currentUrl);
 
-        // Fetch data from DB
+        // Attempt to sync local data to DB if any exists
+        if (columns.length > 0) {
+          toast({ title: "Syncing Local Data", description: "Attempting to save local changes to the database..." });
+          const localSyncResult = await batchInsertColumnData(currentUrl, columns);
+          
+          if (localSyncResult.success) { // Transaction committed for batch insert
+            const trulyInsertedCount = localSyncResult.results?.filter(r => r.success && !r.error?.includes('Duplicate')).length || 0;
+            const skippedAsDuplicateCount = localSyncResult.results?.filter(r => r.success && r.error?.includes('Duplicate')).length || 0;
+            
+            let messageParts = [];
+            if (trulyInsertedCount > 0) messageParts.push(`${trulyInsertedCount} new local entr${trulyInsertedCount === 1 ? 'y was' : 'ies were'} saved to DB`);
+            if (skippedAsDuplicateCount > 0) messageParts.push(`${skippedAsDuplicateCount} local entr${skippedAsDuplicateCount === 1 ? 'y' : 'ies'} already existed in DB (skipped)`);
+            
+            let finalMessage = messageParts.join('. ');
+            if (finalMessage === "") finalMessage = "No new local data to sync or all local data already existed in DB.";
+
+            toast({
+              title: "Local Data Synced",
+              description: finalMessage + ".",
+            });
+          } else { // batchInsertColumnData reported failure (e.g., transaction rollback)
+            toast({
+              title: "Local Data Sync Failed",
+              description: localSyncResult.message || "Could not save local changes to the database. Data has been rolled back.",
+              variant: "destructive",
+            });
+          }
+        }
+
+        // Fetch data from DB (this will overwrite local state with the source of truth from DB)
+        toast({ title: "Fetching Data", description: "Loading all data from the database..." });
         const fetchRes = await fetchColumnData(currentUrl);
         if (fetchRes.success && fetchRes.data) {
           setColumns(fetchRes.data.sort((a,b) => a.columnName.localeCompare(b.columnName)));
-          toast({ title: "Data Fetched", description: `${fetchRes.data.length} columns loaded from the database.`});
+          toast({ title: "Data Loaded", description: `${fetchRes.data.length} columns loaded from the database.`});
         } else {
-          setColumns([]);
-          toast({ title: "Fetch Error", description: fetchRes.message || "Could not load data from database.", variant: "destructive" });
+          setColumns([]); // Clear local columns if fetch fails or returns no data after a successful connection
+          toast({ title: "Data Load Error", description: fetchRes.message || "Could not load data from database.", variant: "destructive" });
         }
         setIsDbPopoverOpen(false); // Close popover on success
       } else {
@@ -428,4 +462,6 @@ export default function DataClassificationPage() {
     </main>
   );
 }
+    
+
     
