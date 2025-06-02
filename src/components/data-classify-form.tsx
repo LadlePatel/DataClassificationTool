@@ -1,3 +1,4 @@
+
 "use client";
 
 import type * as React from 'react';
@@ -43,23 +44,22 @@ export type DataClassifyFormValues = z.infer<typeof formSchema>;
 
 interface DataClassifyFormProps {
   onSubmit: (values: DataClassifyFormValues) => void;
+  ndmoOptions: NDMOClassification[];
 }
 
-export function DataClassifyForm({ onSubmit }: DataClassifyFormProps) {
+export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProps) {
   const form = useForm<DataClassifyFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       columnName: "",
       description: "",
-      ndmoClassification: undefined, // Or a default like 'Restricted'
+      ndmoClassification: undefined,
       pii: false,
       phi: false,
       pfi: false,
       psi: false,
     },
   });
-
-  const ndmoOptions: NDMOClassification[] = ['Top Secret', 'Secret', 'Restricted', 'Public'];
 
   function handleSubmit(values: DataClassifyFormValues) {
     onSubmit(values);
@@ -101,7 +101,7 @@ export function DataClassifyForm({ onSubmit }: DataClassifyFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>NDMO Classification</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
                 <FormControl>
                   <SelectTrigger className="rounded-md">
                     <SelectValue placeholder="Select a classification" />
@@ -125,15 +125,16 @@ export function DataClassifyForm({ onSubmit }: DataClassifyFormProps) {
             control={form.control}
             name="pii"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-input/50">
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-card/80 dark:bg-card">
                 <div className="space-y-0.5">
-                  <FormLabel>PII (Personally Identifiable Information)</FormLabel>
+                  <FormLabel>PII</FormLabel>
+                  <FormDescription className="text-xs">Personally Identifiable Information</FormDescription>
                 </div>
                 <FormControl>
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
-                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary data-[state=checked]:[&>span]:bg-white data-[state=unchecked]:[&>span]:bg-white"
+                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   />
                 </FormControl>
               </FormItem>
@@ -143,15 +144,16 @@ export function DataClassifyForm({ onSubmit }: DataClassifyFormProps) {
             control={form.control}
             name="phi"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-input/50">
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-card/80 dark:bg-card">
                 <div className="space-y-0.5">
-                  <FormLabel>PHI (Personal Health Information)</FormLabel>
+                  <FormLabel>PHI</FormLabel>
+                  <FormDescription className="text-xs">Personal Health Information</FormDescription>
                 </div>
                 <FormControl>
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
-                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary data-[state=checked]:[&>span]:bg-white data-[state=unchecked]:[&>span]:bg-white"
+                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   />
                 </FormControl>
               </FormItem>
@@ -161,15 +163,16 @@ export function DataClassifyForm({ onSubmit }: DataClassifyFormProps) {
             control={form.control}
             name="pfi"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-input/50">
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-card/80 dark:bg-card">
                 <div className="space-y-0.5">
-                  <FormLabel>PFI (Payment Financial Information)</FormLabel>
+                  <FormLabel>PFI</FormLabel>
+                  <FormDescription className="text-xs">Payment Financial Information</FormDescription>
                 </div>
                 <FormControl>
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
-                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary data-[state=checked]:[&>span]:bg-white data-[state=unchecked]:[&>span]:bg-white"
+                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   />
                 </FormControl>
               </FormItem>
@@ -179,15 +182,16 @@ export function DataClassifyForm({ onSubmit }: DataClassifyFormProps) {
             control={form.control}
             name="psi"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-input/50">
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-card/80 dark:bg-card">
                 <div className="space-y-0.5">
-                  <FormLabel>PSI (Payment System Information)</FormLabel>
+                  <FormLabel>PSI</FormLabel>
+                  <FormDescription className="text-xs">Payment System Information</FormDescription>
                 </div>
                 <FormControl>
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
-                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary data-[state=checked]:[&>span]:bg-white data-[state=unchecked]:[&>span]:bg-white"
+                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   />
                 </FormControl>
               </FormItem>
