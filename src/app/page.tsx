@@ -11,16 +11,23 @@ import { ndmoClassificationOptions } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Upload } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { testPostgresConnection } from "@/app/actions/dbActions";
+
 
 export default function DataClassificationPage() {
   const [columns, setColumns] = useState<ColumnData[]>([]);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [postgresUrl, setPostgresUrl] = useState("");
+  const [dbConnectionStatus, setDbConnectionStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
+  const [dbConnectionMessage, setDbConnectionMessage] = useState<string | null>(null);
+
 
   useEffect(() => {
     setIsClient(true);
@@ -155,6 +162,35 @@ export default function DataClassificationPage() {
     }
   };
 
+  const handleTestConnection = async () => {
+    if (!postgresUrl) {
+      setDbConnectionStatus("error");
+      setDbConnectionMessage("PostgreSQL URL cannot be empty.");
+      toast({ title: "Connection Error", description: "PostgreSQL URL cannot be empty.", variant: "destructive" });
+      return;
+    }
+    setDbConnectionStatus("connecting");
+    setDbConnectionMessage("Attempting to connect...");
+    try {
+      const result = await testPostgresConnection(postgresUrl);
+      if (result.success) {
+        setDbConnectionStatus("connected");
+        setDbConnectionMessage(result.message);
+        toast({ title: "Connection Successful", description: result.message });
+      } else {
+        setDbConnectionStatus("error");
+        setDbConnectionMessage(result.message || "Failed to connect to the database.");
+        toast({ title: "Connection Failed", description: result.message || "Unknown error.", variant: "destructive" });
+      }
+    } catch (error) {
+      setDbConnectionStatus("error");
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+      setDbConnectionMessage(`Connection error: ${errorMessage}`);
+      toast({ title: "Connection Error", description: errorMessage, variant: "destructive" });
+    }
+  };
+
+
   return (
     <main className="container mx-auto p-4 md:p-8 min-h-screen">
       <header className="mb-10">
@@ -182,9 +218,9 @@ export default function DataClassificationPage() {
 
           <Card className="shadow-xl rounded-lg">
             <CardHeader>
-              <CardTitle className="font-headline text-2xl text-primary">Upload CSV</CardTitle>
+              <CardTitle className="font-headline text-2xl text-primary">File Operations</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="csv-upload-input" className="text-sm font-medium sr-only">Upload CSV File</Label>
                 <Input
@@ -202,12 +238,49 @@ export default function DataClassificationPage() {
                 >
                   <Upload className="mr-2 h-4 w-4" /> Choose CSV File
                 </Button>
+                 <p className="text-xs text-muted-foreground mt-1">
+                  CSV must contain 'column_name' or 'Column Name'. Optional: Description, NDMO Classification, PII, PHI, PFI, PSI.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                CSV must contain 'column_name' or 'Column Name'. Optional: Description, NDMO Classification, PII, PHI, PFI, PSI.
-              </p>
             </CardContent>
           </Card>
+
+          <Card className="shadow-xl rounded-lg">
+            <CardHeader>
+              <CardTitle className="font-headline text-2xl text-primary flex items-center">
+                <DatabaseZap className="mr-2 h-6 w-6" /> Database Connection
+              </CardTitle>
+              <CardDescription>Connect to your PostgreSQL database.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="postgres-url-input" className="text-sm font-medium">PostgreSQL URL</Label>
+                <Input
+                  id="postgres-url-input"
+                  type="text"
+                  placeholder="postgresql://user:password@host:port/database"
+                  value={postgresUrl}
+                  onChange={(e) => setPostgresUrl(e.target.value)}
+                  className="rounded-md mt-1"
+                />
+              </div>
+              <Button
+                onClick={handleTestConnection}
+                disabled={dbConnectionStatus === "connecting"}
+                className="w-full rounded-md"
+              >
+                {dbConnectionStatus === "connecting" ? "Connecting..." : "Connect to PostgreSQL"}
+              </Button>
+              {dbConnectionMessage && (
+                <div className={`mt-2 text-sm p-3 rounded-md flex items-center ${dbConnectionStatus === 'connected' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : dbConnectionStatus === 'error' ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300' : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'}`}>
+                  {dbConnectionStatus === 'connected' && <CheckCircle2 className="h-5 w-5 mr-2 shrink-0" />}
+                  {dbConnectionStatus === 'error' && <AlertCircle className="h-5 w-5 mr-2 shrink-0" />}
+                  {dbConnectionMessage}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
         </div>
         
         <div className="lg:col-span-2">
@@ -236,3 +309,4 @@ export default function DataClassificationPage() {
     </main>
   );
 }
+
