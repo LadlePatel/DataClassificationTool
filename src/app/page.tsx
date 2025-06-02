@@ -12,10 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2, Settings2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { testPostgresConnection } from "@/app/actions/dbActions";
+import { testPostgresConnection, fetchColumnData, insertColumnData, batchInsertColumnData, updateColumnData } from "@/app/actions/dbActions";
 
 
 export default function DataClassificationPage() {
@@ -24,35 +25,89 @@ export default function DataClassificationPage() {
   const [isClient, setIsClient] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [postgresUrl, setPostgresUrl] = useState("");
+  const [postgresUrl, setPostgresUrl] = useState(process.env.NEXT_PUBLIC_DATABASE_URL || "");
   const [dbConnectionStatus, setDbConnectionStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
   const [dbConnectionMessage, setDbConnectionMessage] = useState<string | null>(null);
+  const [isDbPopoverOpen, setIsDbPopoverOpen] = useState(false);
 
 
   useEffect(() => {
     setIsClient(true);
+    const storedDbUrl = localStorage.getItem("postgresUrl");
+    if (storedDbUrl) {
+      setPostgresUrl(storedDbUrl);
+      // Optionally, try to auto-connect if URL exists
+      // handleTestConnection(storedDbUrl); 
+    }
   }, []);
 
-  const handleAddColumn = (values: DataClassifyFormValues) => {
-    const newColumn: ColumnData = {
-      id: isClient ? crypto.randomUUID() : String(Date.now()),
+  const handleAddColumn = async (values: DataClassifyFormValues) => {
+    const newColumnBase: Omit<ColumnData, 'id'> = {
       ...values,
-      ndmoClassification: values.ndmoClassification as NDMOClassification, 
+      ndmoClassification: values.ndmoClassification as NDMOClassification,
     };
-    setColumns((prevColumns) => [newColumn, ...prevColumns]);
-    toast({
-      title: "Column Added",
-      description: `"${values.columnName}" has been successfully added.`,
-    });
+
+    if (dbConnectionStatus === "connected" && postgresUrl) {
+      const randomId = isClient ? crypto.randomUUID() : String(Date.now());
+      const result = await insertColumnData(postgresUrl, { ...newColumnBase, id: randomId });
+      if (result.success && result.data) {
+        setColumns((prevColumns) => [result.data!, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
+        toast({
+          title: "Column Added",
+          description: `"${values.columnName}" has been saved to the database and added locally.`,
+        });
+      } else {
+        toast({
+          title: "Database Error",
+          description: result.message || "Failed to save column to database.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      const randomId = isClient ? crypto.randomUUID() : String(Date.now());
+      const newColumnWithId: ColumnData = { ...newColumnBase, id: randomId };
+      setColumns((prevColumns) => [newColumnWithId, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
+      toast({
+        title: "Column Added (Locally)",
+        description: `"${values.columnName}" has been added locally. Connect to a database to persist changes.`,
+      });
+    }
   };
 
-  const handleUpdateColumn = (id: string, updatedData: Partial<Omit<ColumnData, 'id'>>) => {
-    setColumns((prevColumns) =>
-      prevColumns.map((col) =>
-        col.id === id ? { ...col, ...updatedData } : col
-      )
-    );
+  const handleUpdateColumn = async (id: string, updatedData: Partial<Omit<ColumnData, 'id'>>) => {
+    const columnToUpdate = columns.find(col => col.id === id);
+    if (!columnToUpdate) return;
+
+    const newFullData: ColumnData = { ...columnToUpdate, ...updatedData };
+
+    if (dbConnectionStatus === "connected" && postgresUrl) {
+      const result = await updateColumnData(postgresUrl, newFullData);
+      if (result.success && result.data) {
+        setColumns((prevColumns) =>
+          prevColumns.map((col) => (col.id === id ? result.data! : col)).sort((a,b) => a.columnName.localeCompare(b.columnName))
+        );
+        toast({
+          title: "Column Updated",
+          description: `"${newFullData.columnName}" has been updated in the database.`,
+        });
+      } else {
+        toast({
+          title: "Database Error",
+          description: result.message || "Failed to update column in database.",
+          variant: "destructive",
+        });
+      }
+    } else {
+       setColumns((prevColumns) =>
+        prevColumns.map((col) => (col.id === id ? { ...col, ...updatedData } : col)).sort((a,b) => a.columnName.localeCompare(b.columnName))
+      );
+      toast({
+        title: "Column Updated (Locally)",
+        description: `"${newFullData.columnName}" has been updated locally. Changes will not persist without a database connection.`,
+      });
+    }
   };
+
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!isClient) return;
@@ -70,7 +125,7 @@ export default function DataClassificationPage() {
     Papa.parse<Record<string, string>>(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (results) => {
+      complete: async (results) => {
         if (results.errors.length > 0) {
           toast({ title: "CSV Parsing Error", description: results.errors.map(e => e.message).join(", "), variant: "destructive" });
           return;
@@ -84,7 +139,7 @@ export default function DataClassificationPage() {
           return;
         }
 
-        const newColumns: ColumnData[] = results.data.map((row) => {
+        const parsedColumns: ColumnData[] = results.data.map((row) => {
           const columnName = row[columnNameKey]?.trim();
           if (!columnName) return null; 
 
@@ -100,13 +155,43 @@ export default function DataClassificationPage() {
           };
         }).filter(Boolean) as ColumnData[];
 
-        if (newColumns.length === 0 && results.data.length > 0) {
+        if (parsedColumns.length === 0 && results.data.length > 0) {
              toast({ title: "No Valid Columns Found", description: "No columns with valid names found in CSV.", variant: "destructive" });
              return;
         }
         
-        setColumns((prevColumns) => [...prevColumns, ...newColumns].sort((a, b) => a.columnName.localeCompare(b.columnName)));
-        toast({ title: "CSV Uploaded", description: `${newColumns.length} columns added from the CSV file.` });
+        if (dbConnectionStatus === "connected" && postgresUrl) {
+            const batchResult = await batchInsertColumnData(postgresUrl, parsedColumns);
+            let successCount = 0;
+            let failCount = 0;
+            const successfullyProcessedColumns: ColumnData[] = [];
+
+            batchResult.results?.forEach(res => {
+                if (res.success) {
+                    successCount++;
+                    // If it was a duplicate and skipped, it's still "successful" in terms of not erroring out the batch.
+                    // We might want to fetch the existing one or use the one from CSV. For now, assume CSV version.
+                    successfullyProcessedColumns.push(res.column); 
+                } else {
+                    failCount++;
+                }
+            });
+            
+            if (batchResult.success) {
+                 toast({ title: "CSV Processed", description: `${successCount} columns processed from CSV and synced with DB. ${failCount > 0 ? `${failCount} failed.` : ''}` });
+            } else {
+                 toast({ title: "CSV Processing Error", description: `Error during DB sync. ${successCount} columns processed, ${failCount} failed. ${batchResult.message}`, variant: "destructive" });
+            }
+            // Fetch all columns again to get a consistent state, including any existing ones.
+            const fetchRes = await fetchColumnData(postgresUrl);
+            if (fetchRes.success && fetchRes.data) {
+                setColumns(fetchRes.data.sort((a, b) => a.columnName.localeCompare(b.columnName)));
+            }
+
+        } else {
+            setColumns((prevColumns) => [...prevColumns, ...parsedColumns].sort((a, b) => a.columnName.localeCompare(b.columnName)));
+            toast({ title: "CSV Uploaded (Locally)", description: `${parsedColumns.length} columns added locally from the CSV file.` });
+        }
       },
       error: (error)  => {
         toast({ title: "CSV Upload Failed", description: error.message, variant: "destructive" });
@@ -119,7 +204,7 @@ export default function DataClassificationPage() {
 
 
   const convertToCSV = (data: ColumnData[]) => {
-    const header = ['Column Name', 'Description', 'NDMO Classification', 'PII', 'PHI', 'PFI', 'PSI'];
+    const header = ['Column Name', 'Description', 'NDMO Classification', 'PII', 'PHI', 'PFI', 'PSI', 'id'];
     const rows = data.map(row => [
       `"${(row.columnName || "").replace(/"/g, '""')}"`,
       `"${(row.description || "").replace(/"/g, '""')}"`,
@@ -128,6 +213,7 @@ export default function DataClassificationPage() {
       row.phi ? 'Yes' : 'No',
       row.pfi ? 'Yes' : 'No',
       row.psi ? 'Yes' : 'No',
+      `"${row.id}"`
     ]);
     return [header.join(','), ...rows.map(row => row.join(','))].join('\r\n');
   };
@@ -162,8 +248,9 @@ export default function DataClassificationPage() {
     }
   };
 
-  const handleTestConnection = async () => {
-    if (!postgresUrl) {
+  const handleTestConnection = async (urlToTest?: string) => {
+    const currentUrl = urlToTest || postgresUrl;
+    if (!currentUrl) {
       setDbConnectionStatus("error");
       setDbConnectionMessage("PostgreSQL URL cannot be empty.");
       toast({ title: "Connection Error", description: "PostgreSQL URL cannot be empty.", variant: "destructive" });
@@ -172,11 +259,23 @@ export default function DataClassificationPage() {
     setDbConnectionStatus("connecting");
     setDbConnectionMessage("Attempting to connect...");
     try {
-      const result = await testPostgresConnection(postgresUrl);
+      const result = await testPostgresConnection(currentUrl);
       if (result.success) {
         setDbConnectionStatus("connected");
         setDbConnectionMessage(result.message);
         toast({ title: "Connection Successful", description: result.message });
+        localStorage.setItem("postgresUrl", currentUrl); // Save on successful connect
+
+        // Fetch data from DB
+        const fetchRes = await fetchColumnData(currentUrl);
+        if (fetchRes.success && fetchRes.data) {
+          setColumns(fetchRes.data.sort((a,b) => a.columnName.localeCompare(b.columnName)));
+          toast({ title: "Data Fetched", description: `${fetchRes.data.length} columns loaded from the database.`});
+        } else {
+          setColumns([]);
+          toast({ title: "Fetch Error", description: fetchRes.message || "Could not load data from database.", variant: "destructive" });
+        }
+        setIsDbPopoverOpen(false); // Close popover on success
       } else {
         setDbConnectionStatus("error");
         setDbConnectionMessage(result.message || "Failed to connect to the database.");
@@ -195,10 +294,60 @@ export default function DataClassificationPage() {
     <main className="container mx-auto p-4 md:p-8 min-h-screen">
       <header className="mb-10">
         <div className="flex justify-between items-center mb-2">
-          <h1 className="text-4xl font-headline font-bold text-center text-accent flex-grow">
+          <h1 className="text-4xl font-headline font-bold text-accent flex-grow">
             Data Classification Tool
           </h1>
-          <ThemeToggle />
+          <div className="flex items-center space-x-2">
+            <Popover open={isDbPopoverOpen} onOpenChange={setIsDbPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="rounded-md">
+                  <DatabaseZap className={`h-5 w-5 ${dbConnectionStatus === 'connected' ? 'text-green-500' : dbConnectionStatus === 'error' ? 'text-red-500' : '' }`} />
+                  <span className="sr-only">Database Connection Settings</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 space-y-4 p-4 mr-2">
+                <div className="space-y-2">
+                  <h4 className="font-medium leading-none text-primary">Database Connection</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Connect to your PostgreSQL database.
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="postgres-url-input" className="text-sm font-medium">PostgreSQL URL</Label>
+                  <Input
+                    id="postgres-url-input"
+                    type="text"
+                    placeholder="postgresql://user:pass@host:port/db"
+                    value={postgresUrl}
+                    onChange={(e) => {
+                      setPostgresUrl(e.target.value);
+                      // Reset status if URL changes
+                      if (dbConnectionStatus !== 'idle' && dbConnectionStatus !== 'connecting') {
+                          setDbConnectionStatus("idle");
+                          setDbConnectionMessage(null);
+                      }
+                    }}
+                    className="rounded-md mt-1"
+                  />
+                </div>
+                <Button
+                  onClick={() => handleTestConnection()}
+                  disabled={dbConnectionStatus === "connecting"}
+                  className="w-full rounded-md"
+                >
+                  {dbConnectionStatus === "connecting" ? "Connecting..." : "Connect & Fetch"}
+                </Button>
+                {dbConnectionMessage && (
+                  <div className={`mt-2 text-sm p-2 rounded-md flex items-center ${dbConnectionStatus === 'connected' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : dbConnectionStatus === 'error' ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300' : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'}`}>
+                    {dbConnectionStatus === 'connected' && <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />}
+                    {dbConnectionStatus === 'error' && <AlertCircle className="h-4 w-4 mr-2 shrink-0" />}
+                    <span className="text-xs">{dbConnectionMessage}</span>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+            <ThemeToggle />
+          </div>
         </div>
         <p className="text-center text-muted-foreground mt-2">
           Manually input, upload, and classify your core banking data columns.
@@ -244,43 +393,6 @@ export default function DataClassificationPage() {
               </div>
             </CardContent>
           </Card>
-
-          <Card className="shadow-xl rounded-lg">
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl text-primary flex items-center">
-                <DatabaseZap className="mr-2 h-6 w-6" /> Database Connection
-              </CardTitle>
-              <CardDescription>Connect to your PostgreSQL database.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="postgres-url-input" className="text-sm font-medium">PostgreSQL URL</Label>
-                <Input
-                  id="postgres-url-input"
-                  type="text"
-                  placeholder="postgresql://user:password@host:port/database"
-                  value={postgresUrl}
-                  onChange={(e) => setPostgresUrl(e.target.value)}
-                  className="rounded-md mt-1"
-                />
-              </div>
-              <Button
-                onClick={handleTestConnection}
-                disabled={dbConnectionStatus === "connecting"}
-                className="w-full rounded-md"
-              >
-                {dbConnectionStatus === "connecting" ? "Connecting..." : "Connect to PostgreSQL"}
-              </Button>
-              {dbConnectionMessage && (
-                <div className={`mt-2 text-sm p-3 rounded-md flex items-center ${dbConnectionStatus === 'connected' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : dbConnectionStatus === 'error' ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300' : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'}`}>
-                  {dbConnectionStatus === 'connected' && <CheckCircle2 className="h-5 w-5 mr-2 shrink-0" />}
-                  {dbConnectionStatus === 'error' && <AlertCircle className="h-5 w-5 mr-2 shrink-0" />}
-                  {dbConnectionMessage}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
         </div>
         
         <div className="lg:col-span-2">
