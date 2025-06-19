@@ -17,8 +17,8 @@ import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2 } from "lucide
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-type ApiActionResult<T = any> = { success: boolean; message?: string; error?: string; data?: T; results?: any };
-type ApiConnectionResult = { success: boolean; message: string; error?: string; };
+// type ApiActionResult<T = any> = { success: boolean; message?: string; error?: string; data?: T; results?: any };
+// type ApiConnectionResult = { success: boolean; message: string; error?: string; };
 
 
 export default function DataClassificationPage() {
@@ -27,21 +27,21 @@ export default function DataClassificationPage() {
   const [isClient, setIsClient] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [postgresUrl, setPostgresUrl] = useState("");
-  const [dbConnectionStatus, setDbConnectionStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
-  const [dbConnectionMessage, setDbConnectionMessage] = useState<string | null>(null);
-  const [isDbPopoverOpen, setIsDbPopoverOpen] = useState(false);
+  // const [postgresUrl, setPostgresUrl] = useState("");
+  // const [dbConnectionStatus, setDbConnectionStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
+  // const [dbConnectionMessage, setDbConnectionMessage] = useState<string | null>(null);
+  // const [isDbPopoverOpen, setIsDbPopoverOpen] = useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = useState(false);
 
 
   useEffect(() => {
     setIsClient(true);
-    const storedDbUrl = localStorage.getItem("postgresUrl");
-    if (storedDbUrl) {
-      setPostgresUrl(storedDbUrl);
-    } else if (process.env.NEXT_PUBLIC_DATABASE_URL) {
-      setPostgresUrl(process.env.NEXT_PUBLIC_DATABASE_URL);
-    }
+    // const storedDbUrl = localStorage.getItem("postgresUrl");
+    // if (storedDbUrl) {
+    //   setPostgresUrl(storedDbUrl);
+    // } else if (process.env.NEXT_PUBLIC_DATABASE_URL) {
+    //   setPostgresUrl(process.env.NEXT_PUBLIC_DATABASE_URL);
+    // }
   }, []);
 
   const handleAddColumn = async (values: DataClassifyFormValues) => {
@@ -49,63 +49,63 @@ export default function DataClassificationPage() {
       ...values,
       ndmoClassification: values.ndmoClassification as NDMOClassification,
     };
-    const randomId = crypto.randomUUID(); // crypto should be available in modern client envs
+    const randomId = crypto.randomUUID();
     const newColumnWithPotentialId: ColumnData = { ...newColumnBase, id: randomId };
 
-    if (dbConnectionStatus === "connected" && postgresUrl) {
-      try {
-        const response = await fetch('/api/db/columns', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dbUrl: postgresUrl, column: newColumnWithPotentialId }),
-        });
+    // if (dbConnectionStatus === "connected" && postgresUrl) {
+    //   try {
+    //     const response = await fetch('/api/db/columns', {
+    //       method: 'POST',
+    //       headers: { 'Content-Type': 'application/json' },
+    //       body: JSON.stringify({ dbUrl: postgresUrl, column: newColumnWithPotentialId }),
+    //     });
         
-        if (!response.ok) {
-            const errorText = await response.text();
-            let errorMessage = `Failed to save column to database. Status: ${response.status}.`;
-            try {
-                const errorJson = JSON.parse(errorText);
-                errorMessage = errorJson.message || errorJson.error || errorMessage;
-            } catch (e) {
-                 if (errorText.toLowerCase().includes("<!doctype html>")) {
-                    errorMessage = `API request failed (Status ${response.status}) and returned HTML. Check server logs.`;
-                } else {
-                    errorMessage = `Failed to save column. Server returned: ${errorText.substring(0,100)}`;
-                }
-            }
-            toast({ title: "Database Error", description: errorMessage, variant: "destructive" });
-            return;
-        }
+    //     if (!response.ok) {
+    //         const errorText = await response.text();
+    //         let errorMessage = `Failed to save column to database. Status: ${response.status}.`;
+    //         try {
+    //             const errorJson = JSON.parse(errorText);
+    //             errorMessage = errorJson.message || errorJson.error || errorMessage;
+    //         } catch (e) {
+    //              if (errorText.toLowerCase().includes("<!doctype html>")) {
+    //                 errorMessage = `API request failed (Status ${response.status}) and returned HTML. Check server logs.`;
+    //             } else {
+    //                 errorMessage = `Failed to save column. Server returned: ${errorText.substring(0,100)}`;
+    //             }
+    //         }
+    //         toast({ title: "Database Error", description: errorMessage, variant: "destructive" });
+    //         return;
+    //     }
         
-        const result: ApiActionResult<ColumnData> = await response.json();
+    //     const result: ApiActionResult<ColumnData> = await response.json();
 
-        if (result.success && result.data) {
-          setColumns((prevColumns) => [result.data!, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
-          toast({
-            title: "Column Added",
-            description: `"${values.columnName}" has been saved to the database.`,
-          });
-        } else {
-          toast({
-            title: "Database Error",
-            description: result.message || `Failed to save column to database.`,
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        toast({
-          title: "Network Error",
-          description: "Could not connect to the server to save the column.",
-          variant: "destructive",
-        });
-      }
-    } else {
+    //     if (result.success && result.data) {
+    //       setColumns((prevColumns) => [result.data!, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
+    //       toast({
+    //         title: "Column Added",
+    //         description: `"${values.columnName}" has been saved to the database.`,
+    //       });
+    //     } else {
+    //       toast({
+    //         title: "Database Error",
+    //         description: result.message || `Failed to save column to database.`,
+    //         variant: "destructive",
+    //       });
+    //     }
+    //   } catch (error) {
+    //     toast({
+    //       title: "Network Error",
+    //       description: "Could not connect to the server to save the column.",
+    //       variant: "destructive",
+    //     });
+    //   }
+    // } else {
       setColumns((prevColumns) => [newColumnWithPotentialId, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
       toast({
         title: "Column Added (Locally)",
-        description: `"${values.columnName}" has been added locally. Connect to a database to persist changes.`,
+        description: `"${values.columnName}" has been added locally.`, // Connect to a database to persist changes.
       });
-    }
+    // }
   };
 
   const handleUpdateColumn = async (id: string, updatedData: Partial<Omit<ColumnData, 'id'>>) => {
@@ -114,64 +114,64 @@ export default function DataClassificationPage() {
 
     const newFullData: ColumnData = { ...columnToUpdate, ...updatedData };
 
-    if (dbConnectionStatus === "connected" && postgresUrl) {
-      try {
-        const response = await fetch('/api/db/update-column', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dbUrl: postgresUrl, column: newFullData }),
-        });
+    // if (dbConnectionStatus === "connected" && postgresUrl) {
+    //   try {
+    //     const response = await fetch('/api/db/update-column', {
+    //         method: 'PUT',
+    //         headers: { 'Content-Type': 'application/json' },
+    //         body: JSON.stringify({ dbUrl: postgresUrl, column: newFullData }),
+    //     });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            let errorMessage = `Failed to update column in database. Status: ${response.status}.`;
-            try {
-                const errorJson = JSON.parse(errorText);
-                errorMessage = errorJson.message || errorJson.error || errorMessage;
-            } catch (e) {
-                if (errorText.toLowerCase().includes("<!doctype html>")) {
-                    errorMessage = `API request failed (Status ${response.status}) and returned HTML. Check server logs.`;
-                } else {
-                    errorMessage = `Failed to update column. Server returned: ${errorText.substring(0,100)}`;
-                }
-            }
-            toast({ title: "Database Error", description: errorMessage, variant: "destructive" });
-            return;
-        }
+    //     if (!response.ok) {
+    //         const errorText = await response.text();
+    //         let errorMessage = `Failed to update column in database. Status: ${response.status}.`;
+    //         try {
+    //             const errorJson = JSON.parse(errorText);
+    //             errorMessage = errorJson.message || errorJson.error || errorMessage;
+    //         } catch (e) {
+    //             if (errorText.toLowerCase().includes("<!doctype html>")) {
+    //                errorMessage = `API request failed (Status ${response.status}) and returned HTML. Check server logs.`;
+    //             } else {
+    //                errorMessage = `Failed to update column. Server returned: ${errorText.substring(0,100)}`;
+    //             }
+    //         }
+    //         toast({ title: "Database Error", description: errorMessage, variant: "destructive" });
+    //         return;
+    //     }
         
-        const result: ApiActionResult<ColumnData> = await response.json();
+    //     const result: ApiActionResult<ColumnData> = await response.json();
         
-        if (result.success && result.data) {
-            setColumns((prevColumns) =>
-            prevColumns.map((col) => (col.id === id ? result.data! : col)).sort((a,b) => a.columnName.localeCompare(b.columnName))
-            );
-            toast({
-            title: "Column Updated",
-            description: `"${newFullData.columnName}" has been updated in the database.`,
-            });
-        } else {
-            toast({
-            title: "Database Error",
-            description: result.message || "Failed to update column in database.",
-            variant: "destructive",
-            });
-        }
-      } catch (error) {
-         toast({
-            title: "Network Error",
-            description: "Could not connect to the server to update the column.",
-            variant: "destructive",
-        });
-      }
-    } else {
+    //     if (result.success && result.data) {
+    //         setColumns((prevColumns) =>
+    //         prevColumns.map((col) => (col.id === id ? result.data! : col)).sort((a,b) => a.columnName.localeCompare(b.columnName))
+    //         );
+    //         toast({
+    //         title: "Column Updated",
+    //         description: `"${newFullData.columnName}" has been updated in the database.`,
+    //         });
+    //     } else {
+    //         toast({
+    //         title: "Database Error",
+    //         description: result.message || "Failed to update column in database.",
+    //         variant: "destructive",
+    //         });
+    //     }
+    //   } catch (error) {
+    //      toast({
+    //         title: "Network Error",
+    //         description: "Could not connect to the server to update the column.",
+    //         variant: "destructive",
+    //     });
+    //   }
+    // } else {
        setColumns((prevColumns) =>
         prevColumns.map((col) => (col.id === id ? { ...col, ...updatedData } : col)).sort((a,b) => a.columnName.localeCompare(b.columnName))
       );
       toast({
         title: "Column Updated (Locally)",
-        description: `"${newFullData.columnName}" has been updated locally. Changes will not persist without a database connection.`,
+        description: `"${newFullData.columnName}" has been updated locally.`, // Changes will not persist without a database connection.
       });
-    }
+    // }
   };
 
 
@@ -226,68 +226,68 @@ export default function DataClassificationPage() {
              return;
         }
         
-        if (dbConnectionStatus === "connected" && postgresUrl) {
-            try {
-                const response = await fetch('/api/db/columns-batch', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ dbUrl: postgresUrl, columns: parsedColumns }),
-                });
+        // if (dbConnectionStatus === "connected" && postgresUrl) {
+        //     try {
+        //         const response = await fetch('/api/db/columns-batch', {
+        //             method: 'POST',
+        //             headers: { 'Content-Type': 'application/json' },
+        //             body: JSON.stringify({ dbUrl: postgresUrl, columns: parsedColumns }),
+        //         });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    let errorMessage = `Error during DB sync for CSV data. Status: ${response.status}.`;
-                     try {
-                        const errorJson = JSON.parse(errorText);
-                        errorMessage = errorJson.message || errorJson.error || errorMessage;
-                    } catch (e) {
-                        if (errorText.toLowerCase().includes("<!doctype html>")) {
-                           errorMessage = `API request failed (Status ${response.status}) and returned HTML. Check server logs.`;
-                        } else {
-                           errorMessage = `Error during DB sync. Server returned: ${errorText.substring(0,100)}`;
-                        }
-                    }
-                    toast({ title: "CSV Processing Error", description: errorMessage, variant: "destructive" });
-                } else {
-                    const batchResult: ApiActionResult = await response.json();
-                    let successCount = 0;
-                    let failCount = 0;
+        //         if (!response.ok) {
+        //             const errorText = await response.text();
+        //             let errorMessage = `Error during DB sync for CSV data. Status: ${response.status}.`;
+        //              try {
+        //                 const errorJson = JSON.parse(errorText);
+        //                 errorMessage = errorJson.message || errorJson.error || errorMessage;
+        //             } catch (e) {
+        //                 if (errorText.toLowerCase().includes("<!doctype html>")) {
+        //                    errorMessage = `API request failed (Status ${response.status}) and returned HTML. Check server logs.`;
+        //                 } else {
+        //                    errorMessage = `Error during DB sync. Server returned: ${errorText.substring(0,100)}`;
+        //                 }
+        //             }
+        //             toast({ title: "CSV Processing Error", description: errorMessage, variant: "destructive" });
+        //         } else {
+        //             const batchResult: ApiActionResult = await response.json();
+        //             let successCount = 0;
+        //             let failCount = 0;
                 
-                    batchResult.results?.forEach((res: { success: boolean; error?: string; }) => {
-                        if (res.success && !res.error?.includes('Duplicate')) {
-                            successCount++;
-                        } else if (!res.success) {
-                            failCount++;
-                        }
-                    });
+        //             batchResult.results?.forEach((res: { success: boolean; error?: string; }) => {
+        //                 if (res.success && !res.error?.includes('Duplicate')) {
+        //                     successCount++;
+        //                 } else if (!res.success) {
+        //                     failCount++;
+        //                 }
+        //             });
                     
-                    if (batchResult.success) {
-                        toast({ title: "CSV Processed & Synced", description: `${successCount} new column${successCount === 1 ? '' : 's'} from CSV saved to DB. ${failCount > 0 ? `${failCount} failed.` : ''} ${batchResult.results?.filter((r: {error?:string}) => r.error?.includes('Duplicate')).length || 0} duplicates skipped.` });
-                    } else {
-                        toast({ title: "CSV Processing Error", description: `Error during DB sync. ${successCount} columns processed, ${failCount} failed. ${batchResult.message}`, variant: "destructive" });
-                    }
-                }
+        //             if (batchResult.success) {
+        //                 toast({ title: "CSV Processed & Synced", description: `${successCount} new column${successCount === 1 ? '' : 's'} from CSV saved to DB. ${failCount > 0 ? `${failCount} failed.` : ''} ${batchResult.results?.filter((r: {error?:string}) => r.error?.includes('Duplicate')).length || 0} duplicates skipped.` });
+        //             } else {
+        //                 toast({ title: "CSV Processing Error", description: `Error during DB sync. ${successCount} columns processed, ${failCount} failed. ${batchResult.message}`, variant: "destructive" });
+        //             }
+        //         }
 
-                toast({ title: "Refreshing Data", description: "Reloading all columns from the database..."});
-                const fetchResponse = await fetch(`/api/db/columns?dbUrl=${encodeURIComponent(postgresUrl)}`);
-                const fetchRes: ApiActionResult<ColumnData[]> = await fetchResponse.json();
+        //         toast({ title: "Refreshing Data", description: "Reloading all columns from the database..."});
+        //         const fetchResponse = await fetch(`/api/db/columns?dbUrl=${encodeURIComponent(postgresUrl)}`);
+        //         const fetchRes: ApiActionResult<ColumnData[]> = await fetchResponse.json();
 
-                if (fetchResponse.ok && fetchRes.success && fetchRes.data) {
-                    setColumns(fetchRes.data.sort((a, b) => a.columnName.localeCompare(b.columnName)));
-                } else {
-                    setColumns([]);
-                    toast({ title: "Refresh Error", description: fetchRes.message || "Could not reload data from database.", variant: "destructive" });
-                }
-            } catch (error) {
-                toast({ title: "Network Error", description: "Could not connect to the server for CSV processing.", variant: "destructive" });
-            }
-            setIsFilePopoverOpen(false);
+        //         if (fetchResponse.ok && fetchRes.success && fetchRes.data) {
+        //             setColumns(fetchRes.data.sort((a, b) => a.columnName.localeCompare(b.columnName)));
+        //         } else {
+        //             setColumns([]);
+        //             toast({ title: "Refresh Error", description: fetchRes.message || "Could not reload data from database.", variant: "destructive" });
+        //         }
+        //     } catch (error) {
+        //         toast({ title: "Network Error", description: "Could not connect to the server for CSV processing.", variant: "destructive" });
+        //     }
+        //     setIsFilePopoverOpen(false);
 
-        } else {
+        // } else {
             setColumns((prevColumns) => [...prevColumns, ...parsedColumns].sort((a, b) => a.columnName.localeCompare(b.columnName)));
             toast({ title: "CSV Uploaded (Locally)", description: `${parsedColumns.length} columns added locally from the CSV file.` });
             setIsFilePopoverOpen(false);
-        }
+        // }
       },
       error: (error)  => {
         toast({ title: "CSV Upload Failed", description: error.message, variant: "destructive" });
@@ -344,118 +344,118 @@ export default function DataClassificationPage() {
     }
   };
 
-  const handleTestConnection = async (urlToTest?: string) => {
-    const currentUrl = urlToTest || postgresUrl;
-    if (!currentUrl) {
-      setDbConnectionStatus("error");
-      setDbConnectionMessage("PostgreSQL URL cannot be empty.");
-      toast({ title: "Connection Error", description: "PostgreSQL URL cannot be empty.", variant: "destructive" });
-      return;
-    }
-    setDbConnectionStatus("connecting");
-    setDbConnectionMessage("Attempting to connect...");
-    try {
-      const response = await fetch('/api/db/test-connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dbUrl: currentUrl }),
-      });
+  // const handleTestConnection = async (urlToTest?: string) => {
+  //   const currentUrl = urlToTest || postgresUrl;
+  //   if (!currentUrl) {
+  //     setDbConnectionStatus("error");
+  //     setDbConnectionMessage("PostgreSQL URL cannot be empty.");
+  //     toast({ title: "Connection Error", description: "PostgreSQL URL cannot be empty.", variant: "destructive" });
+  //     return;
+  //   }
+  //   setDbConnectionStatus("connecting");
+  //   setDbConnectionMessage("Attempting to connect...");
+  //   try {
+  //     const response = await fetch('/api/db/test-connection', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ dbUrl: currentUrl }),
+  //     });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `API request failed with status ${response.status}.`;
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.message || errorJson.error || errorMessage;
-        } catch (e) {
-           if (errorText.toLowerCase().includes("<!doctype html>")) {
-             errorMessage = `Connection Error (Status ${response.status}). Server returned an HTML error page instead of JSON. Please check server logs and database URL format.`;
-           } else {
-             errorMessage = `Connection Error (Status ${response.status}): ${errorText.substring(0, 200)}`;
-           }
-        }
-        setDbConnectionStatus("error");
-        setDbConnectionMessage(errorMessage);
-        toast({ title: "Connection Failed", description: errorMessage, variant: "destructive" });
-        return;
-      }
+  //     if (!response.ok) {
+  //       const errorText = await response.text();
+  //       let errorMessage = `API request failed with status ${response.status}.`;
+  //       try {
+  //         const errorJson = JSON.parse(errorText);
+  //         errorMessage = errorJson.message || errorJson.error || errorMessage;
+  //       } catch (e) {
+  //          if (errorText.toLowerCase().includes("<!doctype html>")) {
+  //            errorMessage = `Connection Error (Status ${response.status}). Server returned an HTML error page instead of JSON. Please check server logs and database URL format.`;
+  //          } else {
+  //            errorMessage = `Connection Error (Status ${response.status}): ${errorText.substring(0, 200)}`;
+  //          }
+  //       }
+  //       setDbConnectionStatus("error");
+  //       setDbConnectionMessage(errorMessage);
+  //       toast({ title: "Connection Failed", description: errorMessage, variant: "destructive" });
+  //       return;
+  //     }
       
-      const result: ApiConnectionResult = await response.json();
+  //     const result: ApiConnectionResult = await response.json();
 
-      if (result.success) {
-        setDbConnectionStatus("connected");
-        setDbConnectionMessage(result.message);
-        toast({ title: "Connection Successful", description: result.message });
-        localStorage.setItem("postgresUrl", currentUrl);
+  //     if (result.success) {
+  //       setDbConnectionStatus("connected");
+  //       setDbConnectionMessage(result.message);
+  //       toast({ title: "Connection Successful", description: result.message });
+  //       localStorage.setItem("postgresUrl", currentUrl);
 
-        if (columns.length > 0) {
-          toast({ title: "Syncing Local Data", description: "Attempting to save local changes to the database..." });
-          const syncResponse = await fetch('/api/db/columns-batch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dbUrl: currentUrl, columns }),
-          });
+  //       if (columns.length > 0) {
+  //         toast({ title: "Syncing Local Data", description: "Attempting to save local changes to the database..." });
+  //         const syncResponse = await fetch('/api/db/columns-batch', {
+  //           method: 'POST',
+  //           headers: { 'Content-Type': 'application/json' },
+  //           body: JSON.stringify({ dbUrl: currentUrl, columns }),
+  //         });
           
-          if (!syncResponse.ok) {
-            const errorText = await syncResponse.text();
-            toast({ title: "Local Data Sync Failed", description: `Server error during sync: ${errorText.substring(0,100)}`, variant: "destructive"});
-          } else {
-            const localSyncResult: ApiActionResult = await syncResponse.json();
-            if (localSyncResult.success) {
-              const trulyInsertedCount = localSyncResult.results?.filter((r: { success: boolean, error?:string}) => r.success && !r.error?.includes('Duplicate')).length || 0;
-              const skippedAsDuplicateCount = localSyncResult.results?.filter((r: { success: boolean, error?:string}) => r.success && r.error?.includes('Duplicate')).length || 0;
+  //         if (!syncResponse.ok) {
+  //           const errorText = await syncResponse.text();
+  //           toast({ title: "Local Data Sync Failed", description: `Server error during sync: ${errorText.substring(0,100)}`, variant: "destructive"});
+  //         } else {
+  //           const localSyncResult: ApiActionResult = await syncResponse.json();
+  //           if (localSyncResult.success) {
+  //             const trulyInsertedCount = localSyncResult.results?.filter((r: { success: boolean, error?:string}) => r.success && !r.error?.includes('Duplicate')).length || 0;
+  //             const skippedAsDuplicateCount = localSyncResult.results?.filter((r: { success: boolean, error?:string}) => r.success && r.error?.includes('Duplicate')).length || 0;
               
-              let messageParts = [];
-              if (trulyInsertedCount > 0) messageParts.push(`${trulyInsertedCount} new local entr${trulyInsertedCount === 1 ? 'y was' : 'ies were'} saved to DB`);
-              if (skippedAsDuplicateCount > 0) messageParts.push(`${skippedAsDuplicateCount} local entr${skippedAsDuplicateCount === 1 ? 'y' : 'ies'} already existed in DB (skipped)`);
+  //             let messageParts = [];
+  //             if (trulyInsertedCount > 0) messageParts.push(`${trulyInsertedCount} new local entr${trulyInsertedCount === 1 ? 'y was' : 'ies were'} saved to DB`);
+  //             if (skippedAsDuplicateCount > 0) messageParts.push(`${skippedAsDuplicateCount} local entr${skippedAsDuplicateCount === 1 ? 'y' : 'ies'} already existed in DB (skipped)`);
               
-              let finalMessage = messageParts.join('. ');
-              if (finalMessage === "") finalMessage = "No new local data to sync or all local data already existed in DB.";
+  //             let finalMessage = messageParts.join('. ');
+  //             if (finalMessage === "") finalMessage = "No new local data to sync or all local data already existed in DB.";
 
-              toast({
-                title: "Local Data Synced",
-                description: finalMessage + ".",
-              });
-            } else {
-              toast({
-                title: "Local Data Sync Failed",
-                description: localSyncResult.message || "Could not save local changes to the database. Data has been rolled back.",
-                variant: "destructive",
-              });
-            }
-          }
-        }
+  //             toast({
+  //               title: "Local Data Synced",
+  //               description: finalMessage + ".",
+  //             });
+  //           } else {
+  //             toast({
+  //               title: "Local Data Sync Failed",
+  //               description: localSyncResult.message || "Could not save local changes to the database. Data has been rolled back.",
+  //               variant: "destructive",
+  //             });
+  //           }
+  //         }
+  //       }
 
-        toast({ title: "Fetching Data", description: "Loading all data from the database..." });
-        const fetchResponse = await fetch(`/api/db/columns?dbUrl=${encodeURIComponent(currentUrl)}`);
+  //       toast({ title: "Fetching Data", description: "Loading all data from the database..." });
+  //       const fetchResponse = await fetch(`/api/db/columns?dbUrl=${encodeURIComponent(currentUrl)}`);
         
-        if(!fetchResponse.ok){
-            const errorText = await fetchResponse.text();
-            toast({ title: "Data Load Error", description: `Server error fetching data: ${errorText.substring(0,100)}`, variant: "destructive" });
-            setColumns([]);
-        } else {
-            const fetchRes: ApiActionResult<ColumnData[]> = await fetchResponse.json();
-            if (fetchRes.success && fetchRes.data) {
-            setColumns(fetchRes.data.sort((a,b) => a.columnName.localeCompare(b.columnName)));
-            toast({ title: "Data Loaded", description: `${fetchRes.data.length} columns loaded from the database.`});
-            } else {
-            setColumns([]); 
-            toast({ title: "Data Load Error", description: fetchRes.message || "Could not load data from database.", variant: "destructive" });
-            }
-        }
-        setIsDbPopoverOpen(false); 
-      } else {
-        setDbConnectionStatus("error");
-        setDbConnectionMessage(result.message || "Failed to connect to the database.");
-        toast({ title: "Connection Failed", description: result.message || `Unknown error.`, variant: "destructive" });
-      }
-    } catch (error) {
-      setDbConnectionStatus("error");
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred during connection.";
-      setDbConnectionMessage(`Connection error: ${errorMessage}`);
-      toast({ title: "Connection Error", description: errorMessage, variant: "destructive" });
-    }
-  };
+  //       if(!fetchResponse.ok){
+  //           const errorText = await fetchResponse.text();
+  //           toast({ title: "Data Load Error", description: `Server error fetching data: ${errorText.substring(0,100)}`, variant: "destructive" });
+  //           setColumns([]);
+  //       } else {
+  //           const fetchRes: ApiActionResult<ColumnData[]> = await fetchResponse.json();
+  //           if (fetchRes.success && fetchRes.data) {
+  //           setColumns(fetchRes.data.sort((a,b) => a.columnName.localeCompare(b.columnName)));
+  //           toast({ title: "Data Loaded", description: `${fetchRes.data.length} columns loaded from the database.`});
+  //           } else {
+  //           setColumns([]); 
+  //           toast({ title: "Data Load Error", description: fetchRes.message || "Could not load data from database.", variant: "destructive" });
+  //           }
+  //       }
+  //       setIsDbPopoverOpen(false); 
+  //     } else {
+  //       setDbConnectionStatus("error");
+  //       setDbConnectionMessage(result.message || "Failed to connect to the database.");
+  //       toast({ title: "Connection Failed", description: result.message || `Unknown error.`, variant: "destructive" });
+  //     }
+  //   } catch (error) {
+  //     setDbConnectionStatus("error");
+  //     const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred during connection.";
+  //     setDbConnectionMessage(`Connection error: ${errorMessage}`);
+  //     toast({ title: "Connection Error", description: errorMessage, variant: "destructive" });
+  //   }
+  // };
 
 
   return (
@@ -504,7 +504,7 @@ export default function DataClassificationPage() {
                 </PopoverContent>
             </Popover>
 
-            <Popover open={isDbPopoverOpen} onOpenChange={setIsDbPopoverOpen}>
+            {/* <Popover open={isDbPopoverOpen} onOpenChange={setIsDbPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon" className="rounded-md">
                   <DatabaseZap className={`h-5 w-5 ${dbConnectionStatus === 'connected' ? 'text-green-500' : dbConnectionStatus === 'error' ? 'text-red-500' : '' }`} />
@@ -550,7 +550,7 @@ export default function DataClassificationPage() {
                   </div>
                 )}
               </PopoverContent>
-            </Popover>
+            </Popover> */}
             <ThemeToggle />
           </div>
         </div>
@@ -597,5 +597,3 @@ export default function DataClassificationPage() {
     </main>
   );
 }
-
-    

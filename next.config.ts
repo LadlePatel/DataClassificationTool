@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // output: 'export', // Removed to enable API routes
+  output: 'export',
 };
 
 export default nextConfig;
