@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "anbgpt"
+  },
+  "targets": {
+    "anbgpt": {
+      "hosting": {
+        "anbdataclassification": [
+          "anbdataclassification"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
