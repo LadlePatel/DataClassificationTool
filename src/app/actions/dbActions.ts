@@ -1,5 +1,6 @@
 
 import { Pool } from 'pg';
+import type { PoolClient } from 'pg';
 import type { ColumnData } from '@/lib/types';
 
 export interface ConnectionResult {
@@ -19,14 +20,13 @@ async function getPool(dbUrl: string): Promise<Pool> {
   if (!dbUrl) {
     throw new Error('Database URL is required.');
   }
+  // This can throw if connectionString is invalid
   return new Pool({ connectionString: dbUrl });
 }
 
-export async function createColumnTableLogic(dbUrl: string): Promise<ActionResult> {
-  const pool = await getPool(dbUrl);
-  let client;
+// Renamed to reflect it uses an existing client
+export async function createColumnTableWithClientLogic(client: PoolClient): Promise<Omit<ActionResult, 'data'>> {
   try {
-    client = await pool.connect();
     await client.query(`
       CREATE TABLE IF NOT EXISTS column_classifications (
         id TEXT PRIMARY KEY,
@@ -41,7 +41,6 @@ export async function createColumnTableLogic(dbUrl: string): Promise<ActionResul
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    // Function to update updated_at column
     await client.query(`
       CREATE OR REPLACE FUNCTION update_updated_at_column()
       RETURNS TRIGGER AS $$
@@ -51,7 +50,6 @@ export async function createColumnTableLogic(dbUrl: string): Promise<ActionResul
       END;
       $$ language 'plpgsql';
     `);
-    // Trigger to update updated_at on row update
     await client.query(`
       DROP TRIGGER IF EXISTS update_column_classifications_updated_at ON column_classifications;
       CREATE TRIGGER update_column_classifications_updated_at
@@ -62,11 +60,8 @@ export async function createColumnTableLogic(dbUrl: string): Promise<ActionResul
     return { success: true, message: 'Table "column_classifications" checked/created successfully.' };
   } catch (err) {
     const error = err as Error;
-    console.error('Table Creation Error:', error);
+    console.error('Table Creation Error (with client):', error);
     return { success: false, message: 'Failed to create table.', error: error.message };
-  } finally {
-    client?.release();
-    await pool.end().catch(console.error);
   }
 }
 
@@ -75,18 +70,21 @@ export async function testPostgresConnectionLogic(dbUrl: string): Promise<Connec
     return { success: false, message: 'Database URL is required.' };
   }
 
-  const pool = await getPool(dbUrl);
-  let client;
+  let pool: Pool | undefined;
+  let client: PoolClient | undefined;
+
   try {
+    pool = await getPool(dbUrl);
     client = await pool.connect();
+    
     const res = await client.query('SELECT NOW()');
     const serverTime = res.rows[0].now;
     
-    const tableCreationResult = await createColumnTableLogic(dbUrl);
+    const tableCreationResult = await createColumnTableWithClientLogic(client);
     if (!tableCreationResult.success) {
         return {
             success: false,
-            message: `Successfully connected, but failed to ensure table exists: ${tableCreationResult.message}`,
+            message: `Successfully connected to PostgreSQL (Server time: ${serverTime}), but failed to ensure table 'column_classifications' exists: ${tableCreationResult.message}`,
             error: tableCreationResult.error
         };
     }
@@ -97,22 +95,37 @@ export async function testPostgresConnectionLogic(dbUrl: string): Promise<Connec
     };
   } catch (err) {
     const error = err as Error;
-    console.error('PostgreSQL Connection Error:', error);
+    console.error('PostgreSQL Connection or Setup Error in testPostgresConnectionLogic:', error);
+    let detailedMessage = 'Failed to connect to PostgreSQL or set up the database.';
+    if (error.message.includes('getaddrinfo ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
+        detailedMessage = 'Failed to connect: Network error or host not found. Check the database host and port.';
+    } else if (error.message.includes('password authentication failed')) {
+        detailedMessage = 'Failed to connect: Password authentication failed. Check your credentials.';
+    } else if (error.message.includes('database') && error.message.includes('does not exist')) {
+        detailedMessage = 'Failed to connect: Database does not exist. Check the database name in your URL.';
+    } else if (error.message.includes('invalid port')) {
+        detailedMessage = 'Failed to connect: Invalid port number. Please check your connection URL.';
+    } else {
+        detailedMessage = `Connection error: ${error.message}`;
+    }
     return { 
       success: false, 
-      message: 'Failed to connect to PostgreSQL.',
+      message: detailedMessage,
       error: error.message 
     };
   } finally {
     client?.release();
-    await pool.end().catch(console.error);
+    if (pool) {
+      await pool.end().catch(pgEndError => console.error('Error ending PG pool:', pgEndError));
+    }
   }
 }
 
 export async function fetchColumnDataLogic(dbUrl: string): Promise<ActionResult & { data?: ColumnData[] }> {
-  const pool = await getPool(dbUrl);
-  let client;
+  let pool: Pool | undefined;
+  let client: PoolClient | undefined;
   try {
+    pool = await getPool(dbUrl);
     client = await pool.connect();
     const res = await client.query('SELECT id, column_name, description, ndmo_classification, pii, phi, pfi, psi FROM column_classifications ORDER BY column_name ASC');
     const columns: ColumnData[] = res.rows.map(row => ({
@@ -132,15 +145,18 @@ export async function fetchColumnDataLogic(dbUrl: string): Promise<ActionResult 
     return { success: false, message: 'Failed to fetch columns.', error: error.message, data: [] };
   } finally {
     client?.release();
-    await pool.end().catch(console.error);
+    if (pool) {
+      await pool.end().catch(pgEndError => console.error('Error ending PG pool during fetch:', pgEndError));
+    }
   }
 }
 
 export async function insertColumnDataLogic(dbUrl: string, column: Omit<ColumnData, 'id'> & { id?: string }): Promise<ActionResult & { data?: ColumnData }> {
-  const pool = await getPool(dbUrl);
-  let client;
+  let pool: Pool | undefined;
+  let client: PoolClient | undefined;
   const columnId = column.id || crypto.randomUUID();
   try {
+    pool = await getPool(dbUrl);
     client = await pool.connect();
     const query = `
       INSERT INTO column_classifications (id, column_name, description, ndmo_classification, pii, phi, pfi, psi)
@@ -180,17 +196,21 @@ export async function insertColumnDataLogic(dbUrl: string, column: Omit<ColumnDa
     return { success: false, message: userMessage, error: error.message };
   } finally {
     client?.release();
-    await pool.end().catch(console.error);
+    if (pool) {
+      await pool.end().catch(pgEndError => console.error('Error ending PG pool during insert:', pgEndError));
+    }
   }
 }
 
 export async function batchInsertColumnDataLogic(dbUrl: string, columns: ColumnData[]): Promise<ActionResult & { results?: { column: ColumnData, success: boolean, error?: string }[] }> {
-    const pool = await getPool(dbUrl);
-    const client = await pool.connect();
+    let pool: Pool | undefined;
+    let client: PoolClient | undefined;
     const results: { column: ColumnData, success: boolean, error?: string }[] = [];
     let allSuccessful = true;
 
     try {
+        pool = await getPool(dbUrl);
+        client = await pool.connect();
         await client.query('BEGIN'); 
 
         for (const column of columns) {
@@ -201,7 +221,7 @@ export async function batchInsertColumnDataLogic(dbUrl: string, columns: ColumnD
                     ON CONFLICT (column_name) DO NOTHING; 
                 `; 
                 const values = [
-                    column.id,
+                    column.id || crypto.randomUUID(), // Ensure ID if not present
                     column.columnName,
                     column.description,
                     column.ndmoClassification,
@@ -212,9 +232,12 @@ export async function batchInsertColumnDataLogic(dbUrl: string, columns: ColumnD
                 ];
                 const res = await client.query(query, values);
                 if (res.rowCount > 0) {
-                    results.push({ column, success: true });
+                    results.push({ column: {...column, id: values[0] as string}, success: true });
                 } else {
-                    results.push({ column, success: true, error: 'Duplicate column_name, skipped.' }); 
+                    // Find existing column by name to return its ID if it was a conflict
+                    const existing = await client.query('SELECT id FROM column_classifications WHERE column_name = $1', [column.columnName]);
+                    const existingId = existing.rows[0]?.id || column.id || values[0] as string;
+                    results.push({ column: {...column, id: existingId }, success: true, error: 'Duplicate column_name, skipped.' }); 
                 }
             } catch (err) {
                 const error = err as Error;
@@ -234,19 +257,22 @@ export async function batchInsertColumnDataLogic(dbUrl: string, columns: ColumnD
     } catch (err) {
         const error = err as Error;
         console.error('Batch Insert Transaction Error:', error);
-        await client.query('ROLLBACK'); 
+        if (client) await client.query('ROLLBACK'); 
         return { success: false, message: 'Batch insert transaction failed.', error: error.message, results };
     } finally {
-        client.release();
-        await pool.end().catch(console.error);
+        client?.release();
+        if (pool) {
+          await pool.end().catch(pgEndError => console.error('Error ending PG pool during batch insert:', pgEndError));
+        }
     }
 }
 
 
 export async function updateColumnDataLogic(dbUrl: string, column: ColumnData): Promise<ActionResult & { data?: ColumnData }> {
-  const pool = await getPool(dbUrl);
-  let client;
+  let pool: Pool | undefined;
+  let client: PoolClient | undefined;
   try {
+    pool = await getPool(dbUrl);
     client = await pool.connect();
     const query = `
       UPDATE column_classifications
@@ -285,6 +311,10 @@ export async function updateColumnDataLogic(dbUrl: string, column: ColumnData): 
     return { success: false, message: 'Failed to update column.', error: error.message };
   } finally {
     client?.release();
-    await pool.end().catch(console.error);
+    if (pool) {
+      await pool.end().catch(pgEndError => console.error('Error ending PG pool during update:', pgEndError));
+    }
   }
 }
+
+    
