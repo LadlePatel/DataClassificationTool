@@ -1,16 +1,14 @@
 
-'use server';
-
 import { Pool } from 'pg';
 import type { ColumnData } from '@/lib/types';
 
-interface ConnectionResult {
+export interface ConnectionResult {
   success: boolean;
   message: string;
   error?: string;
 }
 
-interface ActionResult {
+export interface ActionResult {
   success: boolean;
   message?: string;
   error?: string;
@@ -24,7 +22,7 @@ async function getPool(dbUrl: string): Promise<Pool> {
   return new Pool({ connectionString: dbUrl });
 }
 
-export async function createColumnTable(dbUrl: string): Promise<ActionResult> {
+export async function createColumnTableLogic(dbUrl: string): Promise<ActionResult> {
   const pool = await getPool(dbUrl);
   let client;
   try {
@@ -72,7 +70,7 @@ export async function createColumnTable(dbUrl: string): Promise<ActionResult> {
   }
 }
 
-export async function testPostgresConnection(dbUrl: string): Promise<ConnectionResult> {
+export async function testPostgresConnectionLogic(dbUrl: string): Promise<ConnectionResult> {
   if (!dbUrl) {
     return { success: false, message: 'Database URL is required.' };
   }
@@ -84,8 +82,7 @@ export async function testPostgresConnection(dbUrl: string): Promise<ConnectionR
     const res = await client.query('SELECT NOW()');
     const serverTime = res.rows[0].now;
     
-    // Attempt to create table
-    const tableCreationResult = await createColumnTable(dbUrl); // Pass dbUrl again, it will manage its own pool
+    const tableCreationResult = await createColumnTableLogic(dbUrl);
     if (!tableCreationResult.success) {
         return {
             success: false,
@@ -112,7 +109,7 @@ export async function testPostgresConnection(dbUrl: string): Promise<ConnectionR
   }
 }
 
-export async function fetchColumnData(dbUrl: string): Promise<ActionResult & { data?: ColumnData[] }> {
+export async function fetchColumnDataLogic(dbUrl: string): Promise<ActionResult & { data?: ColumnData[] }> {
   const pool = await getPool(dbUrl);
   let client;
   try {
@@ -139,7 +136,7 @@ export async function fetchColumnData(dbUrl: string): Promise<ActionResult & { d
   }
 }
 
-export async function insertColumnData(dbUrl: string, column: Omit<ColumnData, 'id'> & { id?: string }): Promise<ActionResult & { data?: ColumnData }> {
+export async function insertColumnDataLogic(dbUrl: string, column: Omit<ColumnData, 'id'> & { id?: string }): Promise<ActionResult & { data?: ColumnData }> {
   const pool = await getPool(dbUrl);
   let client;
   const columnId = column.id || crypto.randomUUID();
@@ -187,14 +184,14 @@ export async function insertColumnData(dbUrl: string, column: Omit<ColumnData, '
   }
 }
 
-export async function batchInsertColumnData(dbUrl: string, columns: ColumnData[]): Promise<ActionResult & { results?: { column: ColumnData, success: boolean, error?: string }[] }> {
+export async function batchInsertColumnDataLogic(dbUrl: string, columns: ColumnData[]): Promise<ActionResult & { results?: { column: ColumnData, success: boolean, error?: string }[] }> {
     const pool = await getPool(dbUrl);
     const client = await pool.connect();
     const results: { column: ColumnData, success: boolean, error?: string }[] = [];
     let allSuccessful = true;
 
     try {
-        await client.query('BEGIN'); // Start transaction
+        await client.query('BEGIN'); 
 
         for (const column of columns) {
             try {
@@ -202,7 +199,7 @@ export async function batchInsertColumnData(dbUrl: string, columns: ColumnData[]
                     INSERT INTO column_classifications (id, column_name, description, ndmo_classification, pii, phi, pfi, psi)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                     ON CONFLICT (column_name) DO NOTHING; 
-                `; // ON CONFLICT DO NOTHING to skip duplicates by column_name
+                `; 
                 const values = [
                     column.id,
                     column.columnName,
@@ -217,7 +214,6 @@ export async function batchInsertColumnData(dbUrl: string, columns: ColumnData[]
                 if (res.rowCount > 0) {
                     results.push({ column, success: true });
                 } else {
-                    // This means it was a duplicate and was skipped by ON CONFLICT DO NOTHING
                     results.push({ column, success: true, error: 'Duplicate column_name, skipped.' }); 
                 }
             } catch (err) {
@@ -229,16 +225,16 @@ export async function batchInsertColumnData(dbUrl: string, columns: ColumnData[]
         }
 
         if (allSuccessful) {
-            await client.query('COMMIT'); // Commit transaction
+            await client.query('COMMIT'); 
             return { success: true, message: 'Batch insert completed.', results };
         } else {
-            await client.query('ROLLBACK'); // Rollback transaction if any error
+            await client.query('ROLLBACK'); 
             return { success: false, message: 'Batch insert failed for some columns, transaction rolled back.', results };
         }
     } catch (err) {
         const error = err as Error;
         console.error('Batch Insert Transaction Error:', error);
-        await client.query('ROLLBACK'); // Ensure rollback on outer error
+        await client.query('ROLLBACK'); 
         return { success: false, message: 'Batch insert transaction failed.', error: error.message, results };
     } finally {
         client.release();
@@ -247,7 +243,7 @@ export async function batchInsertColumnData(dbUrl: string, columns: ColumnData[]
 }
 
 
-export async function updateColumnData(dbUrl: string, column: ColumnData): Promise<ActionResult & { data?: ColumnData }> {
+export async function updateColumnDataLogic(dbUrl: string, column: ColumnData): Promise<ActionResult & { data?: ColumnData }> {
   const pool = await getPool(dbUrl);
   let client;
   try {
