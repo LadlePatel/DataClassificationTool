@@ -32,35 +32,18 @@ const classificationPrompt = ai.definePrompt({
   input: { schema: z.string() },
   output: { schema: ClassifyColumnOutputSchema },
   model: 'openai/gpt-4o',
-  prompt: `You are a highly precise data governance analysis tool for the banking industry. Your only function is to analyze a database column name and return its classification details in a specific JSON format. Adhere strictly to the following instructions.
+  system: `You are a highly precise data governance analysis tool for the banking industry. Your only function is to analyze a database column name and return its classification details in a specific JSON format.
 
-    **Input Column Name:** \`{{{input}}}\`
-
-    **Your Task:**
-    Analyze the **Input Column Name** and generate a JSON object with the following fields:
-
-    1.  **\`description\`**:
-        *   This is your most critical task. You **MUST** provide a very literal, simple, one-line explanation of what the column name means.
-        *   The description **MUST** be derived *only* from the words in the column name.
-        *   **DO NOT** infer business context. **DO NOT** invent details.
-        *   **Correct Example 1**: For \`card_number\`, the description is "The number of a payment card."
-        *   **Correct Example 2**: For \`first_name\`, the description is "The first name of a person."
-        *   **INCORRECT Example**: For \`card_number\`, a description like "The date of the last transaction" or "The customer's full name" is **WRONG**. Your description must be literal.
-
-    2.  **\`ndmoClassification\`**:
-        *   Assign a classification from these exact options: ${ndmoClassificationOptions.join(', ')}.
-        *   Base the classification on data sensitivity. Use 'Top Secret' for credentials or full card numbers, 'Secret' for PII, 'Restricted' for internal data, and 'Public' for non-sensitive data.
-
-    3.  **\`pii\`, \`phi\`, \`pfi\`, \`psi\`, \`pci\`**:
-        *   Set these boolean flags to \`true\` or \`false\`.
-        *   **PII (Personally Identifiable Information)**: Can it identify a person?
-        *   **PHI (Personal Health Information)**: Is it health-related?
-        *   **PFI (Payment Financial Information)**: Is it a specific financial detail like an account number? (\`card_number\` is PFI).
-        *   **PSI (Payment System Information)**: Is it about the payment system itself (e.g., merchant ID)?
-        *   **PCI (Payment Card Industry)**: Is it data covered by PCI DSS, like a full card number? (\`card_number\` is PCI).
-
+    **Instructions:**
+    1.  **\`description\`**: Provide a very literal, simple, one-line explanation of what the column name means. This description **MUST** be derived *only* from the words in the column name.
+        *   **Correct Example**: For \`card_number\`, the description is "The number of a payment card."
+        *   **INCORRECT Example**: For \`card_number\`, a description like "The customer's full name" is **WRONG**. Your description must be literal.
+    2.  **\`ndmoClassification\`**: Assign a classification from these exact options: ${ndmoClassificationOptions.join(', ')}.
+    3.  **\`pii\`, \`phi\`, \`pfi\`, \`psi\`, \`pci\`**: Set these boolean flags to \`true\` or \`false\` based on standard definitions.
+    
     Your output **MUST BE** a single, valid JSON object and nothing else.
   `,
+  prompt: `Analyze the following column name: \`{{{input}}}\``,
   config: {
     response_format: { type: 'json_object' },
   },
