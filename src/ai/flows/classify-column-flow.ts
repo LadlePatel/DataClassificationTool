@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow for classifying bank data columns.
@@ -7,13 +8,12 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { type NDMOClassification, ndmoClassificationOptions } from '@/lib/types';
 
 
 const ClassifyColumnOutputSchema = z.object({
-  description: z.string().describe("A brief, one-line explanation of what the column likely holds."),
+  description: z.string().describe("A very literal, one-line explanation of the column's contents, derived *only* from the column name."),
   ndmoClassification: z.enum(ndmoClassificationOptions).describe('The NDMO classification based on data sensitivity.'),
   pii: z.boolean().describe("Is this Personally Identifiable Information?"),
   phi: z.boolean().describe("Is this Personal Health Information?"),
@@ -39,7 +39,7 @@ const classificationPrompt = ai.definePrompt({
     **Column Name:** {{{input}}}
 
     **Instructions:**
-    1.  **Description**: Provide a concise, one-line explanation of what the column *specifically* contains, based *only* on the column name provided. For example, if the column is 'card_number', the description must be about a payment card number, not a bank account number.
+    1.  **Description**: Provide a very literal, concise, one-line explanation of the data held in this column. Your description must be derived *only* from the column name itself. Do not infer a broader context. For example, for 'card_number', the description must be "The number of a payment card." and nothing else. For 'first_name', the description must be "The first name of a person.".
     2.  **NDMO Classification**: Assign a classification from the following options based on sensitivity: ${ndmoClassificationOptions.join(', ')}. Use 'Top Secret' for highly sensitive data like credentials or full card numbers, 'Secret' for PII, 'Restricted' for internal-only data, and 'Public' for non-sensitive data.
     3.  **Flags (PII, PHI, PFI, PSI, PCI)**: Determine if the following flags are true or false.
         -   **PII (Personally Identifiable Information)**: Information that can be used on its own or with other information to identify, contact, or locate a single person.
@@ -67,3 +67,4 @@ const classifyColumnFlow = ai.defineFlow(
     return output;
   }
 );
+
