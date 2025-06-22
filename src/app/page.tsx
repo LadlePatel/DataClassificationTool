@@ -11,10 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
+import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2, Sparkles, Wand2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 
 type ApiActionResult<T = any> = { success: boolean; message?: string; error?: string; data?: T; results?: any };
@@ -35,6 +36,7 @@ export default function DataClassificationPage() {
   
   const [isClassifying, setIsClassifying] = useState(false);
   const [classificationProgress, setClassificationProgress] = useState(0);
+  const [manualColumnName, setManualColumnName] = useState("");
 
 
   useEffect(() => {
@@ -114,35 +116,12 @@ export default function DataClassificationPage() {
     }
   };
 
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isClient) return;
-    const file = event.target.files?.[0];
-    if (!file) {
-      toast({ title: "No file selected", variant: "destructive" });
-      return;
-    }
-
-    if (!file.type.startsWith("text/")) {
-      toast({ title: "Invalid File Type", description: "Please upload a text file (.txt, .csv, etc.).", variant: "destructive" });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const text = e.target?.result as string;
-      if (!text) {
-        toast({ title: "File is empty", variant: "destructive" });
+  const classifyAndAddColumns = async (columnNames: string[]) => {
+      if (columnNames.length === 0 || (columnNames.length === 1 && !columnNames[0])) {
+        toast({ title: "No Input", description: "Please provide at least one column name.", variant: "destructive" });
         return;
       }
       
-      const columnNames = text.split('\n').map(name => name.trim()).filter(name => name.length > 0);
-      
-      if (columnNames.length === 0) {
-        toast({ title: "No column names found", description: "The file seems to be empty or contains only whitespace.", variant: "destructive" });
-        return;
-      }
-
       setIsClassifying(true);
       setClassificationProgress(0);
       setIsFilePopoverOpen(false);
@@ -229,6 +208,33 @@ export default function DataClassificationPage() {
 
       setIsClassifying(false);
       setClassificationProgress(0);
+      setManualColumnName(""); // Clear manual input
+  }
+
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isClient) return;
+    const file = event.target.files?.[0];
+    if (!file) {
+      toast({ title: "No file selected", variant: "destructive" });
+      return;
+    }
+
+    if (!file.type.startsWith("text/")) {
+      toast({ title: "Invalid File Type", description: "Please upload a text file (.txt, .csv, etc.).", variant: "destructive" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      if (!text) {
+        toast({ title: "File is empty", variant: "destructive" });
+        return;
+      }
+      
+      const columnNames = text.split('\n').map(name => name.trim()).filter(name => name.length > 0);
+      await classifyAndAddColumns(columnNames);
     };
 
     reader.onerror = () => {
@@ -242,14 +248,17 @@ export default function DataClassificationPage() {
     }
   };
 
+  const handleManualClassify = async () => {
+    await classifyAndAddColumns([manualColumnName]);
+  }
+
 
   const convertToCSV = (data: ColumnData[]) => {
-    const header = ['id', 'column_name', 'description', 'category', 'ndmo_classification', 'pii', 'phi', 'pfi', 'psi', 'pci'];
+    const header = ['id', 'column_name', 'description', 'ndmo_classification', 'pii', 'phi', 'pfi', 'psi', 'pci'];
     const rows = data.map(row => [
       `"${row.id}"`,
       `"${(row.columnName || "").replace(/"/g, '""')}"`,
       `"${(row.description || "").replace(/"/g, '""')}"`,
-      `"${(row.category || "").replace(/"/g, '""')}"`,
       row.ndmoClassification || 'Public', 
       row.pii ? 'Yes' : 'No',
       row.phi ? 'Yes' : 'No',
@@ -419,15 +428,15 @@ export default function DataClassificationPage() {
              <Popover open={isFilePopoverOpen} onOpenChange={setIsFilePopoverOpen}>
                 <PopoverTrigger asChild>
                     <Button variant="outline" size="icon" className="rounded-md" disabled={isClassifying}>
-                        <Upload className="h-5 w-5" />
-                        <span className="sr-only">Upload File for AI Classification</span>
+                        <Sparkles className="h-5 w-5" />
+                        <span className="sr-only">AI Classification</span>
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 space-y-4 p-4 mr-2">
                     <div className="space-y-2">
                         <div className="flex items-center space-x-2">
-                          <Sparkles className="h-5 w-5 text-primary" />
-                          <h4 className="font-medium leading-none text-primary">AI Classification</h4>
+                          <Upload className="h-5 w-5 text-primary" />
+                          <h4 className="font-medium leading-none text-primary">Upload for Batch Classification</h4>
                         </div>
                         <p className="text-sm text-muted-foreground">
                             Upload a .txt file with one column name per line.
@@ -452,7 +461,31 @@ export default function DataClassificationPage() {
                         >
                           <Upload className="mr-2 h-4 w-4" /> Choose .txt File
                         </Button>
-                      </div>
+                    </div>
+                    <Separator />
+                    <div className="space-y-2">
+                       <div className="flex items-center space-x-2">
+                          <Wand2 className="h-5 w-5 text-primary" />
+                          <h4 className="font-medium leading-none text-primary">Classify Single Column</h4>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                           Enter one column name and classify it instantly.
+                        </p>
+                    </div>
+                    <div className="flex w-full max-w-sm items-center space-x-2">
+                        <Input
+                            type="text"
+                            placeholder="e.g., customer_email"
+                            value={manualColumnName}
+                            onChange={(e) => setManualColumnName(e.target.value)}
+                            disabled={isClassifying}
+                            onKeyDown={(e) => e.key === 'Enter' && handleManualClassify()}
+                        />
+                        <Button type="button" onClick={handleManualClassify} disabled={isClassifying || !manualColumnName}>
+                           Classify
+                        </Button>
+                    </div>
+
                 </PopoverContent>
             </Popover>
 
@@ -507,7 +540,7 @@ export default function DataClassificationPage() {
           </div>
         </div>
         <p className="text-center text-muted-foreground mt-2">
-          Upload a file for automatic AI classification or connect to a database to manage existing data.
+          Use the AI tools to classify new columns or connect to a database to manage existing data.
         </p>
       </header>
       

@@ -13,7 +13,6 @@ import { type ColumnData, type NDMOClassification, ndmoClassificationOptions } f
 
 
 const ClassifyColumnOutputSchema = z.object({
-  category: z.string().describe("A short category for the data (e.g., Personal Identifier, Contact Info, Financial, Authentication)."),
   description: z.string().describe("A brief, one-line explanation of what the column likely holds."),
   ndmoClassification: z.enum(ndmoClassificationOptions).describe('The NDMO classification based on data sensitivity.'),
   pii: z.boolean().describe("Is this Personally Identifiable Information?"),
@@ -33,17 +32,16 @@ const classificationPrompt = ai.definePrompt({
   name: 'classifyColumnPrompt',
   input: { schema: z.string() },
   output: { schema: ClassifyColumnOutputSchema },
-  model: 'googleai/gemini-1.5-flash-latest',
+  model: 'gemini-1.5-flash-latest',
   prompt: `You are an expert data governance analyst for the banking sector. Your task is to classify a database column based on its name.
     Analyze the provided column name and determine its properties.
 
     **Column Name:** {{{input}}}
 
     **Instructions:**
-    1.  **Category**: Determine the type/category of data (e.g., Personal Identifier, Contact Info, Payment Info, Geolocation, Transactional, Authentication).
-    2.  **Description**: Provide a concise, one-line explanation of what the column likely contains.
-    3.  **NDMO Classification**: Assign a classification from the following options based on sensitivity: ${ndmoClassificationOptions.join(', ')}. Use 'Top Secret' for highly sensitive data like credentials or full card numbers, 'Secret' for PII, 'Restricted' for internal-only data, and 'Public' for non-sensitive data.
-    4.  **Flags (PII, PHI, PFI, PSI, PCI)**: Determine if the following flags are true or false.
+    1.  **Description**: Provide a concise, one-line explanation of what the column likely contains.
+    2.  **NDMO Classification**: Assign a classification from the following options based on sensitivity: ${ndmoClassificationOptions.join(', ')}. Use 'Top Secret' for highly sensitive data like credentials or full card numbers, 'Secret' for PII, 'Restricted' for internal-only data, and 'Public' for non-sensitive data.
+    3.  **Flags (PII, PHI, PFI, PSI, PCI)**: Determine if the following flags are true or false.
         -   **PII (Personally Identifiable Information)**: Information that can be used on its own or with other information to identify, contact, or locate a single person.
         -   **PHI (Personal Health Information)**: Health information in any form. Less common in standard banking.
         -   **PFI (Payment Financial Information)**: Specific financial details like bank account numbers, credit card numbers, or transaction histories.
