@@ -370,19 +370,20 @@ export default function DataClassificationPage() {
 
 
   const convertToCSV = (data: ColumnData[]) => {
-    const header = ['id', 'column_name', 'description', 'ndmo_classification', 'pii', 'phi', 'pfi', 'psi', 'pci'];
-    const rows = data.map(row => [
-      `"${row.id}"`,
-      `"${(row.columnName || "").replace(/"/g, '""')}"`,
-      `"${(row.description || "").replace(/"/g, '""')}"`,
-      row.ndmoClassification || 'Public', 
-      row.pii ? 'Yes' : 'No',
-      row.phi ? 'Yes' : 'No',
-      row.pfi ? 'Yes' : 'No',
-      row.psi ? 'Yes' : 'No',
-      row.pci ? 'Yes' : 'No',
-    ]);
-    return [header.join(','), ...rows.map(row => row.join(','))].join('\\r\\n');
+    // Using Papa.unparse is more robust for creating CSV strings.
+    // It handles quoting and escaping automatically.
+    const csvData = data.map(row => ({
+      id: row.id,
+      column_name: row.columnName,
+      description: row.description,
+      ndmo_classification: row.ndmoClassification || 'Public',
+      pii: row.pii,
+      phi: row.phi,
+      pfi: row.pfi,
+      psi: row.psi,
+      pci: row.pci
+    }));
+    return Papa.unparse(csvData, { header: true });
   };
 
   const handleDownloadCsv = () => {
