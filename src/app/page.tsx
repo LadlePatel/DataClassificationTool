@@ -244,7 +244,7 @@ export default function DataClassificationPage() {
         return;
       }
       
-      const columnNames = text.split('\\n').map(name => name.trim()).filter(name => name.length > 0);
+      const columnNames = text.split(/\r?\n/).map(name => name.trim()).filter(name => name.length > 0);
       await classifyAndAddColumns(columnNames);
     };
 
