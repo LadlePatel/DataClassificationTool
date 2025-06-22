@@ -15,14 +15,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type { ColumnData, NDMOClassification } from "@/lib/types";
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 interface DataClassifyTableProps {
   columns: ColumnData[];
   onUpdateColumn: (id: string, updatedData: Partial<Omit<ColumnData, 'id'>>) => void;
+  onDeleteColumn: (id: string) => void;
   ndmoOptions: NDMOClassification[];
 }
 
-export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: DataClassifyTableProps) {
+export function DataClassifyTable({ columns, onUpdateColumn, onDeleteColumn, ndmoOptions }: DataClassifyTableProps) {
   if (columns.length === 0) {
     return <p className="text-center text-muted-foreground py-8">No columns added yet. Use the AI classification tools to add columns.</p>;
   }
@@ -46,6 +61,7 @@ export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: Data
             <TableHead className="text-center w-[70px] min-w-[70px]">PFI</TableHead>
             <TableHead className="text-center w-[70px] min-w-[70px]">PSI</TableHead>
             <TableHead className="text-center w-[70px] min-w-[70px]">PCI</TableHead>
+            <TableHead className="text-center w-[90px] min-w-[90px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -82,7 +98,6 @@ export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: Data
                 <Switch
                   checked={column.pii}
                   onCheckedChange={(checked) => handleInputChange(column.id, 'pii', checked)}
-                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   aria-label={`PII for ${column.columnName}`}
                 />
               </TableCell>
@@ -90,7 +105,6 @@ export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: Data
                 <Switch
                   checked={column.phi}
                   onCheckedChange={(checked) => handleInputChange(column.id, 'phi', checked)}
-                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   aria-label={`PHI for ${column.columnName}`}
                 />
               </TableCell>
@@ -98,7 +112,6 @@ export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: Data
                 <Switch
                   checked={column.pfi}
                   onCheckedChange={(checked) => handleInputChange(column.id, 'pfi', checked)}
-                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   aria-label={`PFI for ${column.columnName}`}
                 />
               </TableCell>
@@ -106,7 +119,6 @@ export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: Data
                 <Switch
                   checked={column.psi}
                   onCheckedChange={(checked) => handleInputChange(column.id, 'psi', checked)}
-                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   aria-label={`PSI for ${column.columnName}`}
                 />
               </TableCell>
@@ -114,9 +126,37 @@ export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: Data
                 <Switch
                   checked={column.pci}
                   onCheckedChange={(checked) => handleInputChange(column.id, 'pci', checked)}
-                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   aria-label={`PCI for ${column.columnName}`}
                 />
+              </TableCell>
+              <TableCell className="text-center align-middle">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete column</span>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the
+                        <span className="font-bold"> "{column.columnName}" </span> 
+                        column and its data from your local data and the database.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDeleteColumn(column.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </TableCell>
             </TableRow>
           ))}

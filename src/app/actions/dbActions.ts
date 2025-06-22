@@ -37,6 +37,7 @@ export async function createColumnTableWithClientLogic(client: PoolClient): Prom
         phi BOOLEAN DEFAULT FALSE,
         pfi BOOLEAN DEFAULT FALSE,
         psi BOOLEAN DEFAULT FALSE,
+        pci BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
@@ -127,7 +128,7 @@ export async function fetchColumnDataLogic(dbUrl: string): Promise<ActionResult 
   try {
     pool = await getPool(dbUrl);
     client = await pool.connect();
-    const res = await client.query('SELECT id, column_name, description, ndmo_classification, pii, phi, pfi, psi FROM column_classifications ORDER BY column_name ASC');
+    const res = await client.query('SELECT id, column_name, description, ndmo_classification, pii, phi, pfi, psi, pci FROM column_classifications ORDER BY column_name ASC');
     const columns: ColumnData[] = res.rows.map(row => ({
       id: row.id,
       columnName: row.column_name,
@@ -137,6 +138,7 @@ export async function fetchColumnDataLogic(dbUrl: string): Promise<ActionResult 
       phi: row.phi || false,
       pfi: row.pfi || false,
       psi: row.psi || false,
+      pci: row.pci || false,
     }));
     return { success: true, data: columns };
   } catch (err) {
@@ -159,8 +161,8 @@ export async function insertColumnDataLogic(dbUrl: string, column: Omit<ColumnDa
     pool = await getPool(dbUrl);
     client = await pool.connect();
     const query = `
-      INSERT INTO column_classifications (id, column_name, description, ndmo_classification, pii, phi, pfi, psi)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO column_classifications (id, column_name, description, ndmo_classification, pii, phi, pfi, psi, pci)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *;
     `;
     const values = [
@@ -172,6 +174,7 @@ export async function insertColumnDataLogic(dbUrl: string, column: Omit<ColumnDa
       column.phi,
       column.pfi,
       column.psi,
+      column.pci,
     ];
     const res = await client.query(query, values);
     const insertedRow = res.rows[0];
@@ -184,6 +187,7 @@ export async function insertColumnDataLogic(dbUrl: string, column: Omit<ColumnDa
         phi: insertedRow.phi,
         pfi: insertedRow.pfi,
         psi: insertedRow.psi,
+        pci: insertedRow.pci,
     };
     return { success: true, message: 'Column inserted successfully.', data: newColumnData };
   } catch (err) {
@@ -216,8 +220,8 @@ export async function batchInsertColumnDataLogic(dbUrl: string, columns: ColumnD
         for (const column of columns) {
             try {
                 const query = `
-                    INSERT INTO column_classifications (id, column_name, description, ndmo_classification, pii, phi, pfi, psi)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    INSERT INTO column_classifications (id, column_name, description, ndmo_classification, pii, phi, pfi, psi, pci)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     ON CONFLICT (column_name) DO NOTHING; 
                 `; 
                 const values = [
@@ -229,6 +233,7 @@ export async function batchInsertColumnDataLogic(dbUrl: string, columns: ColumnD
                     column.phi,
                     column.pfi,
                     column.psi,
+                    column.pci,
                 ];
                 const res = await client.query(query, values);
                 if (res.rowCount > 0) {
@@ -276,7 +281,7 @@ export async function updateColumnDataLogic(dbUrl: string, column: ColumnData): 
     client = await pool.connect();
     const query = `
       UPDATE column_classifications
-      SET description = $2, ndmo_classification = $3, pii = $4, phi = $5, pfi = $6, psi = $7, updated_at = NOW()
+      SET description = $2, ndmo_classification = $3, pii = $4, phi = $5, pfi = $6, psi = $7, pci = $8, updated_at = NOW()
       WHERE id = $1
       RETURNING *;
     `;
@@ -288,6 +293,7 @@ export async function updateColumnDataLogic(dbUrl: string, column: ColumnData): 
       column.phi,
       column.pfi,
       column.psi,
+      column.pci,
     ];
     const res = await client.query(query, values);
     if (res.rows.length === 0) {
@@ -303,6 +309,7 @@ export async function updateColumnDataLogic(dbUrl: string, column: ColumnData): 
         phi: updatedRow.phi,
         pfi: updatedRow.pfi,
         psi: updatedRow.psi,
+        pci: updatedRow.pci,
     };
     return { success: true, message: 'Column updated successfully.', data: updatedColumnData };
   } catch (err) {
@@ -317,4 +324,29 @@ export async function updateColumnDataLogic(dbUrl: string, column: ColumnData): 
   }
 }
 
+export async function deleteColumnDataLogic(dbUrl: string, id: string): Promise<ActionResult> {
+  let pool: Pool | undefined;
+  let client: PoolClient | undefined;
+  try {
+    pool = await getPool(dbUrl);
+    client = await pool.connect();
+    const query = 'DELETE FROM column_classifications WHERE id = $1';
+    const res = await client.query(query, [id]);
+    
+    if (res.rowCount === 0) {
+      return { success: false, message: 'Column not found for deletion.' };
+    }
+
+    return { success: true, message: 'Column deleted successfully.' };
+  } catch (err) {
+    const error = err as Error;
+    console.error('Delete Column Error:', error);
+    return { success: false, message: 'Failed to delete column.', error: error.message };
+  } finally {
+    client?.release();
+    if (pool) {
+      await pool.end().catch(pgEndError => console.error('Error ending PG pool during delete:', pgEndError));
+    }
+  }
+}
     

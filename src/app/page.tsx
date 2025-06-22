@@ -233,7 +233,7 @@ export default function DataClassificationPage() {
         return;
       }
       
-      const columnNames = text.split('\n').map(name => name.trim()).filter(name => name.length > 0);
+      const columnNames = text.split('\\n').map(name => name.trim()).filter(name => name.length > 0);
       await classifyAndAddColumns(columnNames);
     };
 
@@ -266,7 +266,7 @@ export default function DataClassificationPage() {
       row.psi ? 'Yes' : 'No',
       row.pci ? 'Yes' : 'No',
     ]);
-    return [header.join(','), ...rows.map(row => row.join(','))].join('\r\n');
+    return [header.join(','), ...rows.map(row => row.join(','))].join('\\r\\n');
   };
 
   const handleDownloadCsv = () => {
@@ -413,6 +413,40 @@ export default function DataClassificationPage() {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred during connection.";
       setDbConnectionMessage(`Connection error: ${errorMessage}`);
       toast({ title: "Connection Error", description: errorMessage, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteColumn = async (id: string) => {
+    const columnToDelete = columns.find(col => col.id === id);
+    if (!columnToDelete) return;
+
+    if (dbConnectionStatus === "connected" && postgresUrl) {
+        try {
+            const response = await fetch('/api/db/delete-column', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dbUrl: postgresUrl, id }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                toast({ title: "Database Error", description: `Failed to delete column. Server returned: ${errorText.substring(0, 100)}`, variant: "destructive" });
+                return;
+            }
+
+            const result: ApiActionResult = await response.json();
+            if (result.success) {
+                setColumns(prevColumns => prevColumns.filter(col => col.id !== id));
+                toast({ title: "Column Deleted", description: `"${columnToDelete.columnName}" has been deleted from the database.` });
+            } else {
+                toast({ title: "Database Error", description: result.message || "Failed to delete column from database.", variant: "destructive" });
+            }
+        } catch (error) {
+            toast({ title: "Network Error", description: "Could not connect to the server to delete the column.", variant: "destructive" });
+        }
+    } else {
+        setColumns(prevColumns => prevColumns.filter(col => col.id !== id));
+        toast({ title: "Column Deleted (Locally)", description: `"${columnToDelete.columnName}" has been deleted locally.` });
     }
   };
 
@@ -567,6 +601,7 @@ export default function DataClassificationPage() {
             <DataClassifyTable 
               columns={columns} 
               onUpdateColumn={handleUpdateColumn}
+              onDeleteColumn={handleDeleteColumn}
               ndmoOptions={ndmoClassificationOptions} 
             />
           </CardContent>
