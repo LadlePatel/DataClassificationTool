@@ -301,7 +301,7 @@ export default function DataClassificationPage() {
                         if (!columnName) return null;
 
                         return {
-                            id: row.id || crypto.randomUUID(),
+                            id: row.id || row.ID || crypto.randomUUID(),
                             columnName: columnName.trim(),
                             description: row.description || row.Description || "",
                             ndmoClassification: row.ndmo_classification || row['NDMO Classification'] || "Public",
@@ -315,7 +315,7 @@ export default function DataClassificationPage() {
                     .filter((col): col is ColumnData => col !== null);
 
                 if (parsedColumns.length === 0) {
-                    toast({ title: "No Data Found", description: "The CSV file seems to be empty or missing 'column_name' headers.", variant: "destructive" });
+                    toast({ title: "No Data Found", description: "The CSV file seems to be empty or missing 'column_name' or 'Column Name' headers.", variant: "destructive" });
                     return;
                 }
                 
@@ -370,18 +370,16 @@ export default function DataClassificationPage() {
 
 
   const convertToCSV = (data: ColumnData[]) => {
-    // Using Papa.unparse is more robust for creating CSV strings.
-    // It handles quoting and escaping automatically.
     const csvData = data.map(row => ({
-      id: row.id,
-      column_name: row.columnName,
-      description: row.description,
-      ndmo_classification: row.ndmoClassification || 'Public',
-      pii: row.pii,
-      phi: row.phi,
-      pfi: row.pfi,
-      psi: row.psi,
-      pci: row.pci
+      'ID': row.id,
+      'Column Name': row.columnName,
+      'Description': row.description,
+      'NDMO Classification': row.ndmoClassification || 'Public',
+      'PII': row.pii,
+      'PHI': row.phi,
+      'PFI': row.pfi,
+      'PSI': row.psi,
+      'PCI': row.pci,
     }));
     return Papa.unparse(csvData, { header: true });
   };
