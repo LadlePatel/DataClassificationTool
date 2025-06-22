@@ -7,7 +7,6 @@
  */
 
 import { ai } from '@/ai/genkit';
-import openAI from 'genkitx-openai';
 import { z } from 'zod';
 import { type NDMOClassification, ndmoClassificationOptions } from '@/lib/types';
 
@@ -32,7 +31,7 @@ const classificationPrompt = ai.definePrompt({
   input: { schema: z.string() },
   output: { schema: ClassifyColumnOutputSchema },
   model: 'openai/gpt-4o',
-  system: `You are a highly precise data governance analysis tool for the banking industry. Your only function is to analyze a database column name and return its classification details in a specific JSON format.
+  prompt: `You are a highly precise data governance analysis tool for the banking industry. Your only function is to analyze a database column name and return its classification details in a specific JSON format.
 
     **Instructions:**
     1.  **\`description\`**: Provide a very literal, simple, one-line explanation of what the column name means. This description **MUST** be derived *only* from the words in the column name.
@@ -42,8 +41,8 @@ const classificationPrompt = ai.definePrompt({
     3.  **\`pii\`, \`phi\`, \`pfi\`, \`psi\`, \`pci\`**: Set these boolean flags to \`true\` or \`false\` based on standard definitions.
     
     Your output **MUST BE** a single, valid JSON object and nothing else.
-  `,
-  prompt: `Analyze the following column name: \`{{{input}}}\``,
+
+    Analyze the following column name: \`{{{input}}}\``,
   config: {
     response_format: { type: 'json_object' },
   },
