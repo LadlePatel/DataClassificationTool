@@ -61,6 +61,9 @@ const classificationPrompt = ai.definePrompt({
 
     Your output **MUST BE** a single, valid JSON object and nothing else.
   `,
+  config: {
+    response_format: { type: 'json_object' },
+  },
 });
 
 
