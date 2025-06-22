@@ -216,60 +216,56 @@ export async function batchInsertColumnDataLogic(dbUrl: string, columns: ColumnD
     let pool: Pool | undefined;
     let client: PoolClient | undefined;
     const results: { column: ColumnData, success: boolean, error?: string }[] = [];
-    let allSuccessful = true;
-
+    
     try {
         pool = await getPool(dbUrl);
         client = await pool.connect();
         await client.query('BEGIN'); 
 
+        // Using a single query with multiple VALUES clauses is more efficient
+        const valuesClauses: string[] = [];
+        const queryParams: any[] = [];
+        let paramIndex = 1;
+
         for (const column of columns) {
-            try {
-                const query = `
-                    INSERT INTO column_classifications (id, column_name, description, ndmo_classification, pii, phi, pfi, psi, pci)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                    ON CONFLICT (column_name) DO NOTHING; 
-                `; 
-                const values = [
-                    column.id || crypto.randomUUID(), // Ensure ID if not present
-                    column.columnName,
-                    column.description,
-                    column.ndmoClassification,
-                    column.pii,
-                    column.phi,
-                    column.pfi,
-                    column.psi,
-                    column.pci,
-                ];
-                const res = await client.query(query, values);
-                if (res.rowCount > 0) {
-                    results.push({ column: {...column, id: values[0] as string}, success: true });
-                } else {
-                    // Find existing column by name to return its ID if it was a conflict
-                    const existing = await client.query('SELECT id FROM column_classifications WHERE column_name = $1', [column.columnName]);
-                    const existingId = existing.rows[0]?.id || column.id || values[0] as string;
-                    results.push({ column: {...column, id: existingId }, success: true, error: 'Duplicate column_name, skipped.' }); 
-                }
-            } catch (err) {
-                const error = err as Error;
-                console.error(`Batch Insert Error for column ${column.columnName}:`, error);
-                results.push({ column, success: false, error: error.message });
-                allSuccessful = false;
-            }
+            valuesClauses.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`);
+            queryParams.push(
+                column.id || crypto.randomUUID(),
+                column.columnName,
+                column.description,
+                column.ndmoClassification,
+                column.pii,
+                column.phi,
+                column.pfi,
+                column.psi,
+                column.pci
+            );
         }
 
-        if (allSuccessful) {
-            await client.query('COMMIT'); 
-            return { success: true, message: 'Batch insert completed.', results };
-        } else {
-            await client.query('ROLLBACK'); 
-            return { success: false, message: 'Batch insert failed for some columns, transaction rolled back.', results };
-        }
+        const query = `
+            INSERT INTO column_classifications (id, column_name, description, ndmo_classification, pii, phi, pfi, psi, pci)
+            VALUES ${valuesClauses.join(', ')}
+            ON CONFLICT (column_name) DO UPDATE SET
+                description = EXCLUDED.description,
+                ndmo_classification = EXCLUDED.ndmo_classification,
+                pii = EXCLUDED.pii,
+                phi = EXCLUDED.phi,
+                pfi = EXCLUDED.pfi,
+                psi = EXCLUDED.psi,
+                pci = EXCLUDED.pci,
+                updated_at = NOW();
+        `;
+        
+        await client.query(query, queryParams);
+
+        await client.query('COMMIT'); 
+        return { success: true, message: 'Batch sync completed successfully.' };
+
     } catch (err) {
         const error = err as Error;
-        console.error('Batch Insert Transaction Error:', error);
+        console.error('Batch Insert/Update Transaction Error:', error);
         if (client) await client.query('ROLLBACK'); 
-        return { success: false, message: 'Batch insert transaction failed.', error: error.message, results };
+        return { success: false, message: 'Batch sync transaction failed and was rolled back.', error: error.message };
     } finally {
         client?.release();
         if (pool) {

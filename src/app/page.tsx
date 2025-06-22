@@ -3,6 +3,7 @@
 
 import type * as React from 'react';
 import { useState, useEffect, useRef } from "react";
+import Papa from 'papaparse';
 import { DataClassifyTable } from "@/components/data-classify-table";
 import type { ColumnData } from "@/lib/types";
 import { ndmoClassificationOptions } from "@/lib/types";
@@ -38,12 +39,14 @@ export default function DataClassificationPage() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
 
   const [postgresUrl, setPostgresUrl] = useState("");
   const [dbConnectionStatus, setDbConnectionStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
   const [dbConnectionMessage, setDbConnectionMessage] = useState<string | null>(null);
   const [isDbPopoverOpen, setIsDbPopoverOpen] = useState(false);
   const [isFilePopoverOpen, setIsFilePopoverOpen] = useState(false);
+  const [isCsvUploadPopoverOpen, setIsCsvUploadPopoverOpen] = useState(false);
   
   const [isClassifying, setIsClassifying] = useState(false);
   const [classificationProgress, setClassificationProgress] = useState(0);
@@ -169,7 +172,6 @@ export default function DataClassificationPage() {
             });
             return null;
           }).finally(() => {
-              // Increment progress after each promise settles
               setClassificationProgress(prev => prev + (1 / columnNames.length) * 100);
               clearTimeout(progressTimeout);
           });
@@ -262,6 +264,109 @@ export default function DataClassificationPage() {
   const handleManualClassify = async () => {
     await classifyAndAddColumns([manualColumnName]);
   }
+
+  const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isClient) return;
+    const file = event.target.files?.[0];
+    if (!file) {
+        toast({ title: "No file selected", variant: "destructive" });
+        return;
+    }
+
+    if (file.type !== "text/csv") {
+        toast({ title: "Invalid File Type", description: "Please upload a CSV file.", variant: "destructive" });
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const text = e.target?.result as string;
+        if (!text) {
+            toast({ title: "File is empty", variant: "destructive" });
+            return;
+        }
+
+        Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                const toBoolean = (value: any) => {
+                    const str = String(value).trim().toLowerCase();
+                    return ['true', 'yes', '1'].includes(str);
+                };
+
+                const parsedColumns = (results.data as any[])
+                    .map(row => {
+                        const columnName = row.column_name || row['Column Name'] || row.columnName;
+                        if (!columnName) return null;
+
+                        return {
+                            id: row.id || crypto.randomUUID(),
+                            columnName: columnName.trim(),
+                            description: row.description || row.Description || "",
+                            ndmoClassification: row.ndmo_classification || row['NDMO Classification'] || "Public",
+                            pii: toBoolean(row.pii || row.PII),
+                            phi: toBoolean(row.phi || row.PHI),
+                            pfi: toBoolean(row.pfi || row.PFI),
+                            psi: toBoolean(row.psi || row.PSI),
+                            pci: toBoolean(row.pci || row.PCI),
+                        } as ColumnData;
+                    })
+                    .filter((col): col is ColumnData => col !== null);
+
+                if (parsedColumns.length === 0) {
+                    toast({ title: "No Data Found", description: "The CSV file seems to be empty or missing 'column_name' headers.", variant: "destructive" });
+                    return;
+                }
+                
+                setIsCsvUploadPopoverOpen(false);
+                toast({ title: "CSV Parsed", description: `Found ${parsedColumns.length} columns. Syncing...`});
+
+                if (dbConnectionStatus === "connected" && postgresUrl) {
+                    try {
+                        const response = await fetch('/api/db/columns-batch', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ dbUrl: postgresUrl, columns: parsedColumns }),
+                        });
+
+                        if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+                        
+                        const batchResult: ApiActionResult = await response.json();
+                        if (batchResult.success) {
+                            toast({ title: "Sync Complete", description: "Data from CSV has been synced to the database. Fetching latest..." });
+                            await fetchAndSetColumns(postgresUrl);
+                        } else {
+                             throw new Error(batchResult.message || "An unknown error occurred during database sync.");
+                        }
+                    } catch (error) {
+                        const err = error as Error;
+                        toast({ title: "Database Sync Error", description: err.message, variant: "destructive" });
+                    }
+                } else {
+                    // Handle local update
+                    setColumns(prev => {
+                        const existingColumnsMap = new Map(prev.map(col => [col.columnName, col]));
+                        parsedColumns.forEach(newCol => {
+                            const existingCol = existingColumnsMap.get(newCol.columnName);
+                            existingColumnsMap.set(newCol.columnName, { ...(existingCol || {}), ...newCol, id: existingCol?.id || newCol.id });
+                        });
+                        return Array.from(existingColumnsMap.values()).sort((a,b) => a.columnName.localeCompare(b.columnName));
+                    });
+                    toast({ title: "Data Loaded Locally", description: "CSV data has been loaded. Connect to a database to persist changes." });
+                }
+            },
+            error: (error: any) => {
+                toast({ title: "CSV Parse Error", description: error.message, variant: "destructive" });
+            }
+        });
+    };
+    reader.readAsText(file);
+    
+    if (csvFileInputRef.current) {
+        csvFileInputRef.current.value = "";
+    }
+  };
 
 
   const convertToCSV = (data: ColumnData[]) => {
@@ -564,6 +669,45 @@ export default function DataClassificationPage() {
 
                 </PopoverContent>
             </Popover>
+
+            <Popover open={isCsvUploadPopoverOpen} onOpenChange={setIsCsvUploadPopoverOpen}>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="rounded-md">
+                        <Upload className="h-5 w-5" />
+                        <span className="sr-only">Upload CSV Data</span>
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 space-y-4 p-4 mr-2">
+                    <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                            <Upload className="h-5 w-5 text-primary" />
+                            <h4 className="font-medium leading-none text-primary">Upload CSV Data</h4>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                           Upload a .csv file with full column details to populate or update the table.
+                        </p>
+                    </div>
+                    <div>
+                        <Label htmlFor="csv-upload-input-popover" className="text-sm font-medium sr-only">Upload CSV File</Label>
+                        <Input
+                          id="csv-upload-input-popover"
+                          type="file"
+                          accept=".csv"
+                          onChange={handleCsvUpload}
+                          ref={csvFileInputRef}
+                          className="hidden"
+                        />
+                         <Button
+                          onClick={() => csvFileInputRef.current?.click()}
+                          variant="outline"
+                          className="w-full rounded-md"
+                        >
+                          <Upload className="mr-2 h-4 w-4" /> Choose .csv File
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+
 
             <Popover open={isDbPopoverOpen} onOpenChange={setIsDbPopoverOpen}>
               <PopoverTrigger asChild>
