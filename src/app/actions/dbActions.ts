@@ -42,6 +42,12 @@ export async function createColumnTableWithClientLogic(client: PoolClient): Prom
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Add pci column if it doesn't exist for backward compatibility
+    await client.query(`
+      ALTER TABLE column_classifications ADD COLUMN IF NOT EXISTS pci BOOLEAN DEFAULT FALSE;
+    `);
+    
     await client.query(`
       CREATE OR REPLACE FUNCTION update_updated_at_column()
       RETURNS TRIGGER AS $$
