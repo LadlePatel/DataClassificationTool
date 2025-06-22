@@ -6,9 +6,11 @@ export interface ColumnData {
   id: string;
   columnName: string;
   description: string;
+  category: string;
   ndmoClassification?: NDMOClassification; // Made optional for CSV import if not present
   pii: boolean;
   phi: boolean;
   pfi: boolean;
   psi: boolean;
+  pci: boolean;
 }

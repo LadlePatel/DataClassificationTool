@@ -24,7 +24,7 @@ interface DataClassifyTableProps {
 
 export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: DataClassifyTableProps) {
   if (columns.length === 0) {
-    return <p className="text-center text-muted-foreground py-8">No columns added yet. Use the form or upload a CSV to add data.</p>;
+    return <p className="text-center text-muted-foreground py-8">No columns added yet. Use the upload button to automatically classify columns with AI.</p>;
   }
 
   const handleInputChange = (id: string, field: keyof Omit<ColumnData, 'id'> , value: any) => {
@@ -40,11 +40,13 @@ export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: Data
           <TableRow>
             <TableHead className="w-[150px] min-w-[150px] sticky left-0 bg-card z-10">Column Name</TableHead>
             <TableHead className="min-w-[250px]">Description</TableHead>
+            <TableHead className="min-w-[180px]">Category</TableHead>
             <TableHead className="min-w-[180px]">NDMO</TableHead>
             <TableHead className="text-center w-[70px] min-w-[70px]">PII</TableHead>
             <TableHead className="text-center w-[70px] min-w-[70px]">PHI</TableHead>
             <TableHead className="text-center w-[70px] min-w-[70px]">PFI</TableHead>
             <TableHead className="text-center w-[70px] min-w-[70px]">PSI</TableHead>
+            <TableHead className="text-center w-[70px] min-w-[70px]">PCI</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -60,6 +62,7 @@ export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: Data
                   rows={2}
                 />
               </TableCell>
+              <TableCell className="align-top pt-5">{column.category}</TableCell>
               <TableCell className="align-top pt-2.5">
                 <Select
                   value={column.ndmoClassification || ""}
@@ -107,6 +110,14 @@ export function DataClassifyTable({ columns, onUpdateColumn, ndmoOptions }: Data
                   onCheckedChange={(checked) => handleInputChange(column.id, 'psi', checked)}
                   className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
                   aria-label={`PSI for ${column.columnName}`}
+                />
+              </TableCell>
+              <TableCell className="text-center align-middle">
+                <Switch
+                  checked={column.pci}
+                  onCheckedChange={(checked) => handleInputChange(column.id, 'pci', checked)}
+                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
+                  aria-label={`PCI for ${column.columnName}`}
                 />
               </TableCell>
             </TableRow>
