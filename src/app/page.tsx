@@ -137,48 +137,49 @@ export default function DataClassificationPage() {
       setClassificationProgress(0);
       setIsFilePopoverOpen(false);
 
-      const classifiedColumns: ColumnData[] = [];
-      let successfulClassifications = 0;
-
-      for (let i = 0; i < columnNames.length; i++) {
-        const name = columnNames[i];
-        try {
-          const response = await fetch('/api/ai/classify-column', {
+      const promises = columnNames.map(name => {
+          let progressTimeout: NodeJS.Timeout;
+          
+          const promise = fetch('/api/ai/classify-column', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ columnName: name }),
+          }).then(async response => {
+              if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Failed to classify "${name}". Server responded with: ${errorText}`);
+              }
+              const result: ApiActionResult<{classification: Omit<ColumnData, 'id' | 'columnName'>}> = await response.json();
+              if (result.success && result.data) {
+                return {
+                  id: crypto.randomUUID(),
+                  columnName: name,
+                  ...result.data.classification,
+                };
+              } else {
+                throw new Error(result.message || `The AI failed to classify "${name}".`);
+              }
+          }).catch(error => {
+            const err = error as Error;
+            console.error(err);
+            toast({
+                title: "Classification Error",
+                description: err.message,
+                variant: "destructive"
+            });
+            return null;
+          }).finally(() => {
+              // Increment progress after each promise settles
+              setClassificationProgress(prev => prev + (1 / columnNames.length) * 100);
+              clearTimeout(progressTimeout);
           });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Failed to classify "${name}". Server responded with: ${errorText}`);
-          }
-          
-          const result: ApiActionResult<{classification: Omit<ColumnData, 'id' | 'columnName'>}> = await response.json();
-          
-          if (result.success && result.data) {
-            classifiedColumns.push({
-              id: crypto.randomUUID(),
-              columnName: name,
-              ...result.data.classification,
-            });
-            successfulClassifications++;
-          } else {
-             throw new Error(result.message || `The AI failed to classify "${name}".`);
-          }
-
-        } catch (error) {
-           const err = error as Error;
-           console.error(err);
-           toast({
-            title: "Classification Error",
-            description: err.message,
-            variant: "destructive"
-           });
-        } finally {
-            setClassificationProgress(((i + 1) / columnNames.length) * 100);
-        }
-      }
+          return promise;
+      });
+      
+      const results = await Promise.all(promises);
+      const classifiedColumns = results.filter((col): col is ColumnData => col !== null);
+      const successfulClassifications = classifiedColumns.length;
       
       toast({
         title: "Classification Complete",
@@ -186,7 +187,7 @@ export default function DataClassificationPage() {
       });
 
 
-      if (dbConnectionStatus === "connected" && postgresUrl) {
+      if (classifiedColumns.length > 0 && dbConnectionStatus === "connected" && postgresUrl) {
           try {
               toast({ title: "Syncing to DB...", description: "Saving classified columns to the database." });
               const response = await fetch('/api/db/columns-batch', {
@@ -210,16 +211,15 @@ export default function DataClassificationPage() {
           } catch (error) {
               const err = error as Error;
               toast({ title: "Database Sync Error", description: err.message, variant: "destructive" });
-              // Still add columns locally if DB sync fails
               setColumns(prev => [...prev, ...classifiedColumns].sort((a, b) => a.columnName.localeCompare(b.columnName)));
           }
-      } else {
+      } else if (classifiedColumns.length > 0) {
         setColumns(prev => [...prev, ...classifiedColumns].sort((a, b) => a.columnName.localeCompare(b.columnName)));
       }
 
       setIsClassifying(false);
       setClassificationProgress(0);
-      setManualColumnName(""); // Clear manual input
+      setManualColumnName("");
   }
 
 
