@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview An AI flow for classifying bank data columns.
@@ -8,9 +7,9 @@
  */
 
 import { ai } from '@/ai/genkit';
+import openAI from 'genkitx-openai';
 import { z } from 'zod';
 import { type NDMOClassification, ndmoClassificationOptions } from '@/lib/types';
-
 
 const ClassifyColumnOutputSchema = z.object({
   description: z.string().describe("A very literal, one-line explanation of the column's contents, derived *only* from the column name."),
@@ -32,7 +31,7 @@ const classificationPrompt = ai.definePrompt({
   name: 'classifyColumnPrompt',
   input: { schema: z.string() },
   output: { schema: ClassifyColumnOutputSchema },
-  model: 'googleai/gemini-1.5-flash-latest',
+  model: 'openai/gpt-4o',
   prompt: `You are a highly precise data governance analysis tool for the banking industry. Your only function is to analyze a database column name and return its classification details in a specific JSON format. Adhere strictly to the following instructions.
 
     **Input Column Name:** \`{{{input}}}\`

@@ -1,12 +1,12 @@
 'use server';
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import { genkit } from 'genkit';
+import openAI from 'genkitx-openai';
 
 export const ai = genkit({
   plugins: [
-    googleAI({
-      // You can specify the API key here, but it's recommended to use the GOOGLE_API_KEY environment variable
-      // apiKey: process.env.GOOGLE_API_KEY,
+    openAI({
+      // optional: you can pass your API key here, or use the environment variable
+      // apiKey: process.env.OPENAI_API_KEY,
     }),
   ],
 });
