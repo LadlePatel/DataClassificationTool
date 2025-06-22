@@ -355,4 +355,26 @@ export async function deleteColumnDataLogic(dbUrl: string, id: string): Promise<
     }
   }
 }
+
+export async function deleteAllColumnsLogic(dbUrl: string): Promise<ActionResult> {
+  let pool: Pool | undefined;
+  let client: PoolClient | undefined;
+  try {
+    pool = await getPool(dbUrl);
+    client = await pool.connect();
+    const query = 'TRUNCATE TABLE column_classifications;';
+    await client.query(query);
+    
+    return { success: true, message: 'All columns deleted successfully.' };
+  } catch (err) {
+    const error = err as Error;
+    console.error('Delete All Columns Error:', error);
+    return { success: false, message: 'Failed to delete all columns.', error: error.message };
+  } finally {
+    client?.release();
+    if (pool) {
+      await pool.end().catch(pgEndError => console.error('Error ending PG pool during delete all:', pgEndError));
+    }
+  }
+}
     

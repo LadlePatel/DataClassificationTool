@@ -4,18 +4,29 @@
 import type * as React from 'react';
 import { useState, useEffect, useRef } from "react";
 import { DataClassifyTable } from "@/components/data-classify-table";
-import type { ColumnData, NDMOClassification } from "@/lib/types";
+import type { ColumnData } from "@/lib/types";
 import { ndmoClassificationOptions } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2, Sparkles, Wand2 } from "lucide-react";
+import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2, Sparkles, Wand2, Trash } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 
 type ApiActionResult<T = any> = { success: boolean; message?: string; error?: string; data?: T; results?: any };
@@ -450,6 +461,37 @@ export default function DataClassificationPage() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (dbConnectionStatus === "connected" && postgresUrl) {
+      try {
+        const response = await fetch('/api/db/delete-all-columns', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dbUrl: postgresUrl }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          toast({ title: "Database Error", description: `Failed to delete all data. Server returned: ${errorText.substring(0, 100)}`, variant: "destructive" });
+          return;
+        }
+
+        const result: ApiActionResult = await response.json();
+        if (result.success) {
+          setColumns([]);
+          toast({ title: "All Data Deleted", description: "All columns have been deleted from the database." });
+        } else {
+          toast({ title: "Database Error", description: result.message || "Failed to delete all data from the database.", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Network Error", description: "Could not connect to the server to delete data.", variant: "destructive" });
+      }
+    } else {
+      setColumns([]);
+      toast({ title: "All Data Deleted (Locally)", description: "All columns have been deleted locally." });
+    }
+  };
+
 
   return (
     <main className="container mx-auto p-4 md:p-8 min-h-screen">
@@ -588,14 +630,46 @@ export default function DataClassificationPage() {
         <Card className="shadow-xl rounded-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="font-headline text-2xl text-primary">Classified Columns</CardTitle>
-            <Button 
-              onClick={handleDownloadCsv} 
-              disabled={!isClient || columns.length === 0}
-              variant="outline"
-              className="rounded-md"
-            >
-              <Download className="mr-2 h-4 w-4" /> Download CSV
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button 
+                onClick={handleDownloadCsv} 
+                disabled={!isClient || columns.length === 0}
+                variant="outline"
+                className="rounded-md"
+              >
+                <Download className="mr-2 h-4 w-4" /> Download CSV
+              </Button>
+               <AlertDialog>
+                <AlertDialogTrigger asChild>
+                   <Button
+                      variant="destructive"
+                      className="rounded-md"
+                      disabled={!isClient || columns.length === 0}
+                    >
+                      <Trash className="mr-2 h-4 w-4" /> Delete All
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete ALL
+                      <span className="font-bold"> {columns.length} </span> 
+                      columns from your local data and the database.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAll}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Yes, Delete Everything
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardHeader>
           <CardContent>
             <DataClassifyTable 

@@ -7,8 +7,9 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
-import { type ColumnData, type NDMOClassification, ndmoClassificationOptions } from '@/lib/types';
+import { type NDMOClassification, ndmoClassificationOptions } from '@/lib/types';
 
 
 const ClassifyColumnOutputSchema = z.object({
@@ -38,14 +39,14 @@ const classificationPrompt = ai.definePrompt({
     **Column Name:** {{{input}}}
 
     **Instructions:**
-    1.  **Description**: Provide a concise, one-line explanation of what the column likely contains.
+    1.  **Description**: Provide a concise, one-line explanation of what the column *specifically* contains, based *only* on the column name provided. For example, if the column is 'card_number', the description must be about a payment card number, not a bank account number.
     2.  **NDMO Classification**: Assign a classification from the following options based on sensitivity: ${ndmoClassificationOptions.join(', ')}. Use 'Top Secret' for highly sensitive data like credentials or full card numbers, 'Secret' for PII, 'Restricted' for internal-only data, and 'Public' for non-sensitive data.
     3.  **Flags (PII, PHI, PFI, PSI, PCI)**: Determine if the following flags are true or false.
         -   **PII (Personally Identifiable Information)**: Information that can be used on its own or with other information to identify, contact, or locate a single person.
         -   **PHI (Personal Health Information)**: Health information in any form. Less common in standard banking.
-        -   **PFI (Payment Financial Information)**: Specific financial details like bank account numbers, credit card numbers, or transaction histories.
+        -   **PFI (Payment Financial Information)**: Specific financial details like bank account numbers, credit card numbers, or transaction histories. A 'card_number' is PFI.
         -   **PSI (Payment System Information)**: Information about the payment system itself, like merchant IDs or terminal IDs.
-        -   **PCI (Payment Card Industry)**: Specifically for data covered by PCI DSS, primarily the full Primary Account Number (PAN).
+        -   **PCI (Payment Card Industry)**: Specifically for data covered by PCI DSS, primarily the full Primary Account Number (PAN). A 'card_number' is PCI.
 
     Return ONLY a valid JSON object matching the requested output format.
   `,
