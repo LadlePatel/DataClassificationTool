@@ -4,7 +4,7 @@
 import type * as React from 'react';
 import { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
-import { DataClassifyForm, type DataClassifyFormValues } from "@/components/data-classify-form";
+// import { DataClassifyForm, type DataClassifyFormValues } from "@/components/data-classify-form";
 import { DataClassifyTable } from "@/components/data-classify-table";
 import type { ColumnData, NDMOClassification } from "@/lib/types";
 import { ndmoClassificationOptions } from "@/lib/types";
@@ -44,69 +44,69 @@ export default function DataClassificationPage() {
     // }
   }, []);
 
-  const handleAddColumn = async (values: DataClassifyFormValues) => {
-    const newColumnBase: Omit<ColumnData, 'id'> = {
-      ...values,
-      ndmoClassification: values.ndmoClassification as NDMOClassification,
-    };
-    const randomId = crypto.randomUUID();
-    const newColumnWithPotentialId: ColumnData = { ...newColumnBase, id: randomId };
+  // const handleAddColumn = async (values: DataClassifyFormValues) => {
+  //   const newColumnBase: Omit<ColumnData, 'id'> = {
+  //     ...values,
+  //     ndmoClassification: values.ndmoClassification as NDMOClassification,
+  //   };
+  //   const randomId = crypto.randomUUID();
+  //   const newColumnWithPotentialId: ColumnData = { ...newColumnBase, id: randomId };
 
-    // if (dbConnectionStatus === "connected" && postgresUrl) {
-    //   try {
-    //     const response = await fetch('/api/db/columns', {
-    //       method: 'POST',
-    //       headers: { 'Content-Type': 'application/json' },
-    //       body: JSON.stringify({ dbUrl: postgresUrl, column: newColumnWithPotentialId }),
-    //     });
+  //   // if (dbConnectionStatus === "connected" && postgresUrl) {
+  //   //   try {
+  //   //     const response = await fetch('/api/db/columns', {
+  //   //       method: 'POST',
+  //   //       headers: { 'Content-Type': 'application/json' },
+  //   //       body: JSON.stringify({ dbUrl: postgresUrl, column: newColumnWithPotentialId }),
+  //   //     });
         
-    //     if (!response.ok) {
-    //         const errorText = await response.text();
-    //         let errorMessage = `Failed to save column to database. Status: ${response.status}.`;
-    //         try {
-    //             const errorJson = JSON.parse(errorText);
-    //             errorMessage = errorJson.message || errorJson.error || errorMessage;
-    //         } catch (e) {
-    //              if (errorText.toLowerCase().includes("<!doctype html>")) {
-    //                 errorMessage = `API request failed (Status ${response.status}) and returned HTML. Check server logs.`;
-    //             } else {
-    //                 errorMessage = `Failed to save column. Server returned: ${errorText.substring(0,100)}`;
-    //             }
-    //         }
-    //         toast({ title: "Database Error", description: errorMessage, variant: "destructive" });
-    //         return;
-    //     }
+  //   //     if (!response.ok) {
+  //   //         const errorText = await response.text();
+  //   //         let errorMessage = `Failed to save column to database. Status: ${response.status}.`;
+  //   //         try {
+  //   //             const errorJson = JSON.parse(errorText);
+  //   //             errorMessage = errorJson.message || errorJson.error || errorMessage;
+  //   //         } catch (e) {
+  //   //              if (errorText.toLowerCase().includes("<!doctype html>")) {
+  //   //                 errorMessage = `API request failed (Status ${response.status}) and returned HTML. Check server logs.`;
+  //   //             } else {
+  //   //                 errorMessage = `Failed to save column. Server returned: ${errorText.substring(0,100)}`;
+  //   //             }
+  //   //         }
+  //   //         toast({ title: "Database Error", description: errorMessage, variant: "destructive" });
+  //   //         return;
+  //   //     }
         
-    //     const result: ApiActionResult<ColumnData> = await response.json();
+  //   //     const result: ApiActionResult<ColumnData> = await response.json();
 
-    //     if (result.success && result.data) {
-    //       setColumns((prevColumns) => [result.data!, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
-    //       toast({
-    //         title: "Column Added",
-    //         description: `"${values.columnName}" has been saved to the database.`,
-    //       });
-    //     } else {
-    //       toast({
-    //         title: "Database Error",
-    //         description: result.message || `Failed to save column to database.`,
-    //         variant: "destructive",
-    //       });
-    //     }
-    //   } catch (error) {
-    //     toast({
-    //       title: "Network Error",
-    //       description: "Could not connect to the server to save the column.",
-    //       variant: "destructive",
-    //     });
-    //   }
-    // } else {
-      setColumns((prevColumns) => [newColumnWithPotentialId, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
-      toast({
-        title: "Column Added (Locally)",
-        description: `"${values.columnName}" has been added locally.`, // Connect to a database to persist changes.
-      });
-    // }
-  };
+  //   //     if (result.success && result.data) {
+  //   //       setColumns((prevColumns) => [result.data!, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
+  //   //       toast({
+  //   //         title: "Column Added",
+  //   //         description: `"${values.columnName}" has been saved to the database.`,
+  //   //       });
+  //   //     } else {
+  //   //       toast({
+  //   //         title: "Database Error",
+  //   //         description: result.message || `Failed to save column to database.`,
+  //   //         variant: "destructive",
+  //   //       });
+  //   //     }
+  //   //   } catch (error) {
+  //   //     toast({
+  //   //       title: "Network Error",
+  //   //       description: "Could not connect to the server to save the column.",
+  //   //       variant: "destructive",
+  //   //     });
+  //   //   }
+  //   // } else {
+  //     setColumns((prevColumns) => [newColumnWithPotentialId, ...prevColumns].sort((a,b) => a.columnName.localeCompare(b.columnName)));
+  //     toast({
+  //       title: "Column Added (Locally)",
+  //       description: `"${values.columnName}" has been added locally.`, // Connect to a database to persist changes.
+  //     });
+  //   // }
+  // };
 
   const handleUpdateColumn = async (id: string, updatedData: Partial<Omit<ColumnData, 'id'>>) => {
     const columnToUpdate = columns.find(col => col.id === id);
@@ -559,40 +559,27 @@ export default function DataClassificationPage() {
         </p>
       </header>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-8">
-          <Card className="shadow-xl rounded-lg">
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl text-primary">Add New Column</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataClassifyForm onSubmit={handleAddColumn} ndmoOptions={ndmoClassificationOptions} />
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="lg:col-span-2">
-          <Card className="shadow-xl rounded-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="font-headline text-2xl text-primary">Classified Columns</CardTitle>
-              <Button 
-                onClick={handleDownloadCsv} 
-                disabled={!isClient || columns.length === 0}
-                variant="outline"
-                className="rounded-md"
-              >
-                <Download className="mr-2 h-4 w-4" /> Download CSV
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <DataClassifyTable 
-                columns={columns} 
-                onUpdateColumn={handleUpdateColumn}
-                ndmoOptions={ndmoClassificationOptions} 
-              />
-            </CardContent>
-          </Card>
-        </div>
+      <div className="space-y-8">
+        <Card className="shadow-xl rounded-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="font-headline text-2xl text-primary">Classified Columns</CardTitle>
+            <Button 
+              onClick={handleDownloadCsv} 
+              disabled={!isClient || columns.length === 0}
+              variant="outline"
+              className="rounded-md"
+            >
+              <Download className="mr-2 h-4 w-4" /> Download CSV
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <DataClassifyTable 
+              columns={columns} 
+              onUpdateColumn={handleUpdateColumn}
+              ndmoOptions={ndmoClassificationOptions} 
+            />
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
