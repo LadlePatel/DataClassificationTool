@@ -14,7 +14,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Download, Upload, DatabaseZap, AlertCircle, CheckCircle2, Sparkles, Wand2, Trash } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -297,19 +296,19 @@ export default function DataClassificationPage() {
 
                 const parsedColumns = (results.data as any[])
                     .map(row => {
-                        const columnName = row.column_name || row['Column Name'] || row.columnName;
+                        const columnName = row['Column Name'] || row.column_name || row.columnName;
                         if (!columnName) return null;
 
                         return {
-                            id: row.id || row.ID || crypto.randomUUID(),
+                            id: row.ID || row.id || crypto.randomUUID(),
                             columnName: columnName.trim(),
-                            description: row.description || row.Description || "",
-                            ndmoClassification: row.ndmo_classification || row['NDMO Classification'] || "Public",
-                            pii: toBoolean(row.pii || row.PII),
-                            phi: toBoolean(row.phi || row.PHI),
-                            pfi: toBoolean(row.pfi || row.PFI),
-                            psi: toBoolean(row.psi || row.PSI),
-                            pci: toBoolean(row.pci || row.PCI),
+                            description: row.Description || row.description || "",
+                            ndmoClassification: row['NDMO Classification'] || row.ndmo_classification || "Public",
+                            pii: toBoolean(row.PII || row.pii),
+                            phi: toBoolean(row.PHI || row.phi),
+                            pfi: toBoolean(row.PFI || row.pfi),
+                            psi: toBoolean(row.PSI || row.psi),
+                            pci: toBoolean(row.PCI || row.pci),
                         } as ColumnData;
                     })
                     .filter((col): col is ColumnData => col !== null);
@@ -711,7 +710,7 @@ export default function DataClassificationPage() {
             <Popover open={isDbPopoverOpen} onOpenChange={setIsDbPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon" className="rounded-md">
-                  <DatabaseZap className={`h-5 w-5 ${dbConnectionStatus === 'connected' ? 'text-green-500' : dbConnectionStatus === 'error' ? 'text-red-500' : '' }`} />
+                  <DatabaseZap className={`h-5 w-5 ${dbConnectionStatus === 'connected' ? 'text-blue-600' : dbConnectionStatus === 'error' ? 'text-red-500' : '' }`} />
                   <span className="sr-only">Database Connection Settings</span>
                 </Button>
               </PopoverTrigger>
@@ -747,7 +746,7 @@ export default function DataClassificationPage() {
                   {dbConnectionStatus === "connecting" ? "Connecting..." : "Connect & Fetch"}
                 </Button>
                 {dbConnectionMessage && (
-                  <div className={`mt-2 text-sm p-2 rounded-md flex items-center ${dbConnectionStatus === 'connected' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : dbConnectionStatus === 'error' ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300' : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'}`}>
+                  <div className={`mt-2 text-sm p-2 rounded-md flex items-center ${dbConnectionStatus === 'connected' ? 'bg-blue-100 text-blue-700' : dbConnectionStatus === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
                     {dbConnectionStatus === 'connected' && <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />}
                     {dbConnectionStatus === 'error' && <AlertCircle className="h-4 w-4 mr-2 shrink-0" />}
                     <span className="text-xs">{dbConnectionMessage}</span>
@@ -755,7 +754,6 @@ export default function DataClassificationPage() {
                 )}
               </PopoverContent>
             </Popover>
-            <ThemeToggle />
           </div>
         </div>
         <p className="text-center text-muted-foreground mt-2">
