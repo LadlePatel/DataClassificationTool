@@ -25,4 +25,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ladlegenai/anb-data-classifier:latest
+          tags: sayeedajmal/anb-data-classifier:latest
