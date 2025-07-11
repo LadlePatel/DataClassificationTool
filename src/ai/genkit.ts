@@ -1,12 +1,10 @@
 'use server';
 import { genkit } from 'genkit';
-import openAI from 'genkitx-openai';
+import { groq, llama4MScout17b } from 'genkitx-groq';
 
 export const ai = genkit({
   plugins: [
-    openAI({
-      // optional: you can pass your API key here, or use the environment variable
-      // apiKey: process.env.OPENAI_API_KEY,
-    }),
+    groq({ apiKey: process.env.GROQ_API_KEY }),
   ],
+  model: llama4MScout17b,
 });

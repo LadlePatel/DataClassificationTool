@@ -34,7 +34,6 @@ const classifyColumnFlow = ai.defineFlow(
   },
   async (columnName) => {
     const { output } = await ai.generate({
-      model: 'openai/gpt-4o',
       output: { schema: ClassifyColumnOutputSchema },
       prompt: `You are a highly precise data governance analysis tool for the banking industry. Your only function is to analyze a database column name and return its classification details in a specific JSON format.
 
@@ -48,9 +47,6 @@ const classifyColumnFlow = ai.defineFlow(
       Your output **MUST BE** a single, valid JSON object that conforms to the requested schema.
 
       Analyze the following column name: \`${columnName}\``,
-      config: {
-        response_format: { type: 'json_object' },
-      },
     });
 
     if (!output) {
