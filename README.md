@@ -1,6 +1,6 @@
-# ANB Data Classification Tool
+# ANB Data Classification
 
-ANB Data Classification Tool is a powerful, AI-enhanced web application for classifying and managing data columns in enterprise databases. Built with Next.js, it provides a seamless interface for connecting to PostgreSQL and Oracle databases, classifying data using AI, and managing column information through an interactive grid.
+ANB Data Classification is a powerful, AI-enhanced web application for classifying and managing data columns in enterprise databases. Built with Next.js, it provides a seamless interface for connecting to PostgreSQL and Oracle databases, classifying data using AI, and managing column information through an interactive grid.
 
 ![App Screenshot](page.png)
 
