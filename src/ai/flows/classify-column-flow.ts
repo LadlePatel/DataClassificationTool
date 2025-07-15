@@ -19,20 +19,29 @@ export type ClassifyColumnOutput = z.infer<typeof ClassifyColumnOutputSchema>;
 export async function classifyColumn(
   columnName: string
 ): Promise<ClassifyColumnOutput> {
-  const prompt = `You are a highly precise data governance analysis tool for the banking industry. Your only function is to analyze a database column name and return its classification details in a specific JSON format.
+  const prompt = `You are a highly precise data governance analysis tool for the banking industry.
 
-**Instructions:**
-1.  **\`description\`**: Provide a very literal, simple, one-line explanation of what the column name means. This description **MUST** be derived *only* from the words in the column name.
-    *   **Correct Example**: For \`card_number\`, the description is "The number of a payment card."
-    *   **INCORRECT Example**: For \`card_number\`, a description like "The customer's full name" is **WRONG**. Your description must be literal.
-2.  **\`ndmoClassification\`**: Assign a classification from these exact options: ${ndmoClassificationOptions.join(
-    ", "
-  )}.
-3.  **\`pii\`, \`phi\`, \`pfi\`, \`psi\`, \`pci\`**: Set these boolean flags to \`true\` or \`false\` based on standard definitions.
+Your only function is to analyze a database column name and return its classification details in a specific JSON format.
 
-Your output **MUST BE** a single, valid JSON object that conforms to the requested schema.
+⚠️ VERY IMPORTANT:
+- ONLY respond with a single valid JSON object.
+- Your JSON MUST be wrapped inside a fenced code block like \`\`\`json ... \`\`\`.
+- DO NOT provide any explanation, reasoning, or commentary.
 
-Analyze the following column name: \`${columnName}\``;
+---
+
+Analyze the following column name: \`${columnName}\`
+
+Expected JSON Schema:
+{
+  "description": string,
+  "ndmoClassification": one of [${ndmoClassificationOptions.join(", ")}],
+  "pii": boolean,
+  "phi": boolean,
+  "pfi": boolean,
+  "psi": boolean,
+  "pci": boolean
+}`;
 
   const response = await fetch(
     "https://api.groq.com/openai/v1/chat/completions",
@@ -67,19 +76,27 @@ Analyze the following column name: \`${columnName}\``;
     throw new Error("No content returned from Groq API");
   }
 
-  // Strip triple backtick block
-  let jsonText = content.trim();
-  if (jsonText.startsWith("```json")) {
-    jsonText = jsonText.slice(7, -3).trim();
-  } else if (jsonText.startsWith("```")) {
-    jsonText = jsonText.slice(3, -3).trim();
+  let jsonText: string | undefined;
+
+  const match = content.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
+  if (match?.[1]) {
+    jsonText = match[1].trim();
+  } else {
+    const fallback = content.match(/{[\s\S]*}/);
+    if (fallback?.[0]) {
+      jsonText = fallback[0].trim();
+    }
+  }
+
+  if (!jsonText) {
+    throw new Error("Groq returned non-JSON output:\n" + content);
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonText);
-  } catch {
-    throw new Error("Groq returned non-JSON output:\n" + content);
+  } catch (err) {
+    throw new Error("Failed to parse JSON from Groq:\n" + jsonText);
   }
 
   const result = ClassifyColumnOutputSchema.safeParse(parsed);
