@@ -1,0 +1,34 @@
+entity_id
+lead_entity
+associated_entity
+cif id
+entity_id
+lead_entity
+associated_entity
+other_entity
+avg_bal
+eff_avg_bal
+uncollected_balance
+acl_id
+instruction_id
+acid
+payment_amt
+payment_ref_id
+cif id
+remitter_name
+remitter_acct
+org_pymt_offln_rfnm_r
+transfer_acct
+virtual_acct
+virtual transfer_acct
+instruction_id
+acid
+payment_amt
+cif id
+org_pymt_offln_rfnm_reinit
+transfer_acct
+tran_id
+virtual_acct
+virtual_transfer_acct
+acid
+acid
