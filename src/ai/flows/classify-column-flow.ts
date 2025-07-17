@@ -19,6 +19,9 @@ const ClassifyColumnOutputSchema = z.object({
   ndmoClassification: z
     .enum(ndmoClassificationOptions)
     .describe("The NDMO classification based on data sensitivity."),
+  reason_ndmo: z
+    .string()
+    .describe("The NDMO reason based on the ndmoClassification."),
   pii: z.boolean().describe("Is this Personally Identifiable Information?"),
   phi: z.boolean().describe("Is this Personal Health Information?"),
   pfi: z.boolean().describe("Is this Payment Financial Information?"),
@@ -115,6 +118,7 @@ You must respond with ONLY a valid JSON object (no markdown backticks, no explan
 {
   "description": "Brief literal description of what this column contains",
   "ndmoClassification": "one of: ${ndmoClassificationOptions.join(", ")}",
+  "reason_ndmo": "give the reason based on the ndmoClassification why this ndmoClassification is selected in just under 5 words",
   "pii": boolean,
   "phi": boolean,
   "pfi": boolean,
@@ -123,7 +127,7 @@ You must respond with ONLY a valid JSON object (no markdown backticks, no explan
 }`;
 
     const { output } = await ai.generate({
-      model: 'openai/gpt-4o',
+      model: "openai/gpt-4o",
       output: { schema: ClassifyColumnOutputSchema },
       prompt,
       config: {

@@ -1,7 +1,6 @@
-
 "use client";
 
-import type * as React from 'react';
+import type * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,9 +30,10 @@ import { PlusCircle } from "lucide-react";
 const formSchema = z.object({
   columnName: z.string().min(1, "Column Name is required."),
   description: z.string().min(1, "Description is required."),
-  ndmoClassification: z.enum(['Top Secret', 'Secret', 'Restricted', 'Public'], {
+  ndmoClassification: z.enum(["Top Secret", "Secret", "Restricted", "Public"], {
     required_error: "NDMO Classification is required.",
   }),
+  reason_ndmo: z.string().min(1, "Reason is required."),
   pii: z.boolean().default(false),
   phi: z.boolean().default(false),
   pfi: z.boolean().default(false),
@@ -47,13 +47,17 @@ interface DataClassifyFormProps {
   ndmoOptions: NDMOClassification[];
 }
 
-export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProps) {
+export function DataClassifyForm({
+  onSubmit,
+  ndmoOptions,
+}: DataClassifyFormProps) {
   const form = useForm<DataClassifyFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       columnName: "",
       description: "",
       ndmoClassification: undefined,
+      reason_ndmo: undefined,
       pii: false,
       phi: false,
       pfi: false,
@@ -76,7 +80,11 @@ export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProp
             <FormItem>
               <FormLabel>Column Name</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., customer_email" {...field} className="rounded-md" />
+                <Input
+                  placeholder="e.g., customer_email"
+                  {...field}
+                  className="rounded-md"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -89,7 +97,11 @@ export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProp
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea placeholder="Enter a brief description of the column" {...field} className="rounded-md" />
+                <Textarea
+                  placeholder="Enter a brief description of the column"
+                  {...field}
+                  className="rounded-md"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -101,7 +113,11 @@ export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProp
           render={({ field }) => (
             <FormItem>
               <FormLabel>NDMO Classification</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value || ""}
+                defaultValue={field.value || ""}
+              >
                 <FormControl>
                   <SelectTrigger className="rounded-md">
                     <SelectValue placeholder="Select a classification" />
@@ -119,7 +135,23 @@ export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProp
             </FormItem>
           )}
         />
-
+        <FormField
+          control={form.control}
+          name="reason_ndmo"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Reason of NDMO</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Enter a brief reason of the column"
+                  {...field}
+                  className="rounded-md"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="space-y-4">
           <FormField
             control={form.control}
@@ -128,7 +160,9 @@ export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProp
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-card/80 dark:bg-card">
                 <div className="space-y-0.5">
                   <FormLabel>PII</FormLabel>
-                  <FormDescription className="text-xs">Personally Identifiable Information</FormDescription>
+                  <FormDescription className="text-xs">
+                    Personally Identifiable Information
+                  </FormDescription>
                 </div>
                 <FormControl>
                   <Switch
@@ -146,7 +180,9 @@ export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProp
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-card/80 dark:bg-card">
                 <div className="space-y-0.5">
                   <FormLabel>PHI</FormLabel>
-                  <FormDescription className="text-xs">Personal Health Information</FormDescription>
+                  <FormDescription className="text-xs">
+                    Personal Health Information
+                  </FormDescription>
                 </div>
                 <FormControl>
                   <Switch
@@ -164,7 +200,9 @@ export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProp
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-card/80 dark:bg-card">
                 <div className="space-y-0.5">
                   <FormLabel>PFI</FormLabel>
-                  <FormDescription className="text-xs">Payment Financial Information</FormDescription>
+                  <FormDescription className="text-xs">
+                    Payment Financial Information
+                  </FormDescription>
                 </div>
                 <FormControl>
                   <Switch
@@ -182,7 +220,9 @@ export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProp
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-card/80 dark:bg-card">
                 <div className="space-y-0.5">
                   <FormLabel>PSI</FormLabel>
-                  <FormDescription className="text-xs">Payment System Information</FormDescription>
+                  <FormDescription className="text-xs">
+                    Payment System Information
+                  </FormDescription>
                 </div>
                 <FormControl>
                   <Switch
@@ -194,7 +234,7 @@ export function DataClassifyForm({ onSubmit, ndmoOptions }: DataClassifyFormProp
             )}
           />
         </div>
-        
+
         <Button type="submit" className="w-full rounded-md">
           <PlusCircle className="mr-2 h-4 w-4" /> Add Column
         </Button>

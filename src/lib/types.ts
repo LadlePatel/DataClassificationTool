@@ -7,6 +7,7 @@ export interface ColumnData {
   columnName: string;
   description: string;
   ndmoClassification?: NDMOClassification; // Made optional for CSV import if not present
+  reason_ndmo?:string,
   pii: boolean;
   phi: boolean;
   pfi: boolean;
