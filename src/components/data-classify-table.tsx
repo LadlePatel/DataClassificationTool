@@ -81,8 +81,8 @@ export function DataClassifyTable({
               Column Name
             </TableHead>
             <TableHead className="min-w-[250px]">Description</TableHead>
-            <TableHead className="min-w-[180px]">NDMO</TableHead>
-            <TableHead className="min-w-[180px]">Reason NDMO</TableHead>
+            <TableHead className="min-w-[180px]">NDMO Classification</TableHead>
+            <TableHead className="min-w-[180px]">NDMO Classification Reason</TableHead>
             <TableHead className="text-center w-[70px] min-w-[70px]">
               PII
             </TableHead>
